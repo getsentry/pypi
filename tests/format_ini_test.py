@@ -75,6 +75,30 @@ apt_requires =
     assert err == f"{ini}: formatted\n"
 
 
+def test_format_list_attributes_sorts_values(capsys, tmp_path):
+    ini_src = """\
+[xmlsec==1.3.12]
+apt_requires =
+    pkg-config
+    libxmlsec1-dev
+"""
+    expected = """\
+[xmlsec==1.3.12]
+apt_requires =
+    libxmlsec1-dev
+    pkg-config
+"""
+    ini = tmp_path.joinpath("f.ini")
+    ini.write_text(ini_src)
+
+    assert format_ini.main((str(ini),)) == 1
+
+    assert ini.read_text() == expected
+
+    _, err = capsys.readouterr()
+    assert err == f"{ini}: formatted\n"
+
+
 def test_sorts_attributes(capsys, tmp_path):
     ini_src = """\
 [confluent-kafka==1.7.0]
