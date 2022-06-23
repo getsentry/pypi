@@ -23,7 +23,7 @@ def _format_value(v: str) -> str:
     v = v.strip()
     v_split = v.split()
     if len(v_split) > 1:
-        items_s = "\n".join(v_split)
+        items_s = "\n".join(sorted(v_split))
         return f"\n{items_s}"
     else:
         return v
