@@ -1,0 +1,19 @@
+name: test
+on:
+  pull_request:
+  push:
+    branches: [main, test-me-*]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+      with:
+        python-version: 3.8
+    - run: pip install tox
+    - run: tox -e py
