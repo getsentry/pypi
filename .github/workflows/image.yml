@@ -1,0 +1,39 @@
+name: image
+on:
+  pull_request:
+    paths: [docker/*, .github/workflows/image.yml]
+  push:
+    branches: [main, test-me-*]
+    paths: [docker/*, .github/workflows/image.yml]
+
+jobs:
+  image:
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    env:
+      TARGET_TAG: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: enable cross build
+      run: docker run --rm --privileged tonistiigi/binfmt --install arm64
+      if: matrix.arch == 'aarch64'
+    - name: build
+      run: |
+        args=()
+        if docker pull -q "$TARGET_TAG"; then
+          args+=(--cache-from "$TARGET_TAG")
+        fi
+        docker build \
+            "${args[@]}" \
+            --build-arg ARCH=${{ matrix.arch }} \
+            --tag "${TARGET_TAG}:${GITHUB_SHA}" \
+            docker
+        docker tag "${TARGET_TAG}:${GITHUB_SHA}" "${TARGET_TAG}:latest"
+    - name: push
+      run: |
+        docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
+        docker push "${TARGET_TAG}:${GITHUB_SHA}"
+        docker push "${TARGET_TAG}:latest"
+      if: github.event_name != 'pull_request'
