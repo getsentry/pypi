@@ -1,0 +1,28 @@
+{
+  "info": {
+    "name": "cfgv",
+    "version": "3.3.1",
+    "requires_dist": null,
+    "requires_python": null,
+    "platform": "UNKNOWN",
+    "summary": null
+  },
+  "releases": {
+    "3.3.1": [
+      {
+        "filename": "cfgv-3.3.1-py2.py3-none-any.whl",
+        "url": "../../../wheels/cfgv-3.3.1-py2.py3-none-any.whl",
+        "requires_python": null,
+        "packagetype": "bdist_wheel"
+      }
+    ]
+  },
+  "urls": [
+    {
+      "filename": "cfgv-3.3.1-py2.py3-none-any.whl",
+      "url": "../../../wheels/cfgv-3.3.1-py2.py3-none-any.whl",
+      "requires_python": null,
+      "packagetype": "bdist_wheel"
+    }
+  ]
+}
