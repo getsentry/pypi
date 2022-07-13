@@ -1,0 +1,75 @@
+#!/usr/bin/env python3.8
+from __future__ import annotations
+
+import argparse
+import os.path
+import platform
+import subprocess
+import tempfile
+
+PY = (
+    (
+        "3.8.13+0",
+        {
+            "aarch64": "d0e09b382cdac0c8905e3dc3baf57526db062d38b808615086022b042897373d",
+            "x86_64": "49dd96d2bbfd40b3f6bf852707bb6704b067425af17ba4caf585b3c8d3b6307a",
+        },
+    ),
+    (
+        "3.9.13+0",
+        {
+            "aarch64": "f06a26474e9e2a749194355c2cbc3894f6bfc7435910f2ed4359640dae9e6a26",
+            "x86_64": "a9d5bc4f827cbd9bb7f0c572234377567cf3839dbedc7c45b935bd0077cdc36e",
+        },
+    ),
+    (
+        "3.10.5+0",
+        {
+            "aarch64": "fec17f4ad22bf12c2ab0390cc4890a5bb63f86dbe3abeec96acf25c36346dae3",
+            "x86_64": "a9134d4fadc18cb91519cbf194027895f74742420eaf7bac060d84de8355fede",
+        },
+    ),
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dest", default="/opt/python")
+    args = parser.parse_args()
+
+    os.makedirs(args.dest, exist_ok=True)
+
+    arch = platform.machine()
+    _, libc = platform.libc_ver()
+    libc = libc.replace(".", "_")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for version, hashes in PY:
+            expected = hashes[arch]
+
+            major, minor, *_ = version.split(".")
+            dest = os.path.join(args.dest, f"cp{major}{minor}-cp{major}{minor}")
+
+            archive_name = f"python-{version}-manylinux_{libc}_{arch}.tgz"
+            url = f"https://storage.googleapis.com/sentry-dev-infra-assets/prebuilt-pythons/{archive_name}"
+            tgz_dest = os.path.join(tmpdir, archive_name)
+
+            curl_cmd = ("curl", "--silent", "--location", "--output", tgz_dest, url)
+            subprocess.check_call(curl_cmd)
+
+            check = f"{expected}  {tgz_dest}\n".encode()
+            sha256sum_cmd = ("sha256sum", "--check", "--quiet", "-")
+            subprocess.run(sha256sum_cmd, check=True, input=check)
+
+            os.makedirs(dest, exist_ok=True)
+            tar_cmd = ("tar", "-C", dest, "--strip-components=1", "-xf", tgz_dest)
+            subprocess.check_call(tar_cmd)
+
+            py = os.path.join(dest, "bin", "python3")
+            subprocess.check_call((py, "--version", "--version"))
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
