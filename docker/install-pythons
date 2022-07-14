@@ -66,6 +66,8 @@ def main() -> int:
             subprocess.check_call(tar_cmd)
 
             py = os.path.join(dest, "bin", "python3")
+            subprocess.check_call((py, "-mensurepip"))
+            subprocess.check_call((py, "-mpip", "install", "wheel==0.37.1"))
             subprocess.check_call((py, "--version", "--version"))
 
     return 0
