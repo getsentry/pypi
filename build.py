@@ -179,7 +179,8 @@ def _darwin_repair_wheel(filename: str, dest: str) -> None:
     )
 
 
-IMAGE_NAME = f"ghcr.io/getsentry/pypi-manylinux-{platform.machine()}-ci"
+PLAT_MAP = {"x86_64": "amd64", "aarch64": "arm64", "arm64": "arm64"}
+IMAGE_NAME = f"ghcr.io/getsentry/pypi-manylinux-{PLAT_MAP[platform.machine()]}-ci"
 
 
 def _docker_run() -> tuple[str, ...]:
@@ -261,8 +262,18 @@ def _linux_install(package: Package) -> Generator[None, None, None]:
 
 
 def _linux_repair_wheel(filename: str, dest: str) -> None:
+    _, libc = platform.libc_ver()
+    libc = libc.replace(".", "_")
+    manylinux = f"manylinux_{libc}_{platform.machine()}"
     subprocess.check_call(
-        (sys.executable, "-mauditwheel", "repair", filename, "--wheel-dir", dest)
+        (
+            sys.executable,
+            "-mauditwheel",
+            "repair",
+            f"--wheel-dir={dest}",
+            f"--plat={manylinux}",
+            filename,
+        )
     )
 
 
