@@ -9,24 +9,24 @@ import tempfile
 
 PY = (
     (
-        "3.8.13+0",
+        "3.8.13+1",
         {
-            "aarch64": "d0e09b382cdac0c8905e3dc3baf57526db062d38b808615086022b042897373d",
-            "x86_64": "49dd96d2bbfd40b3f6bf852707bb6704b067425af17ba4caf585b3c8d3b6307a",
+            "aarch64": "6efcad0a2e02625291597883d026b11c8f8cfa842642fd795cf1cb4a3c9e28b5",
+            "x86_64": "0b77405d69976ae45e3d054b11527d3b81c113478e0eed058251238be92b72be",
         },
     ),
     (
-        "3.9.13+0",
+        "3.9.13+1",
         {
-            "aarch64": "f06a26474e9e2a749194355c2cbc3894f6bfc7435910f2ed4359640dae9e6a26",
-            "x86_64": "a9d5bc4f827cbd9bb7f0c572234377567cf3839dbedc7c45b935bd0077cdc36e",
+            "aarch64": "86b4c02878a82fbb88f391086d90cbe33cb928ab79282de54362e169e64021a4",
+            "x86_64": "106174840735a35d9441d699e358aec20e52c00afa8f87a34869595c5d367a3e",
         },
     ),
     (
-        "3.10.5+0",
+        "3.10.5+1",
         {
-            "aarch64": "fec17f4ad22bf12c2ab0390cc4890a5bb63f86dbe3abeec96acf25c36346dae3",
-            "x86_64": "a9134d4fadc18cb91519cbf194027895f74742420eaf7bac060d84de8355fede",
+            "aarch64": "c661c92558e7badc25d58f5d8f6c0ad648dfe6195373148f19e9aab5c1167797",
+            "x86_64": "5355312b9c1b882d8d576741ec5dcd902bc729c705c8a7ce5e387180d7951f81",
         },
     ),
 )
