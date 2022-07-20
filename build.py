@@ -197,7 +197,7 @@ def _linux_setup_deps(packages_ini: str, dest: str, index_url: str) -> None:
     print("execing into container...")
     cmd = (
         *_docker_run(),
-        "--net=host",
+        "--pull=always",
         "--rm",
         f"--volume={os.path.abspath(packages_ini)}:/packages.ini:ro",
         f"--volume={os.path.abspath(dest)}:/dist:rw",
