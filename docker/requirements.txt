@@ -6,11 +6,16 @@
 #
 auditwheel==5.1.2
 delocate==0.10.2
+distlib==0.3.5
+filelock==3.7.1
 packaging==21.3
 patchelf==0.14.5.0 ; sys_platform == "linux"
+platformdirs==2.5.2
 pyelftools==0.28
 pyparsing==3.0.9
+six==1.16.0
 typing-extensions==4.3.0
+virtualenv==20.15.1
 wheel==0.37.1
 
 # The following packages are considered to be unsafe in a requirements file:

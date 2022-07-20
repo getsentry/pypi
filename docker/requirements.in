@@ -5,3 +5,4 @@ patchelf>=0.14.5;sys_platform=="linux"
 pip>=22.1.2
 setuptools>=63.1.0
 wheel>=0.37.1
+virtualenv>=20.15.1
