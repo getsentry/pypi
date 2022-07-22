@@ -4,7 +4,6 @@ import argparse
 import configparser
 import contextlib
 import functools
-import io
 import itertools
 import json
 import os.path
@@ -13,7 +12,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Callable
@@ -97,11 +95,11 @@ class Package(NamedTuple):
 
 def _internal_wheels(index: str) -> tuple[Wheel, ...]:
     # dumb-pypi specific `packages.json` endpoint
-    resp = urllib.request.urlopen(f"{index}/packages.json")
-    return tuple(Wheel(json.loads(line)["filename"]) for line in io.TextIOWrapper(resp))
+    resp = urllib.request.urlopen(urllib.parse.urljoin(index, "packages.json"))
+    return tuple(Wheel(json.loads(line)["filename"]) for line in resp)
 
 
-def _darwin_setup_deps(packages_ini: str, dest: str, index_url: str) -> None:
+def _darwin_setup_deps(packages_ini: str, dest: str) -> None:
     """darwin requires no setup"""
 
 
@@ -175,7 +173,7 @@ def _docker_run() -> tuple[str, ...]:
         return ("docker", "run", "--user", f"{os.getuid()}:{os.getgid()}")
 
 
-def _linux_setup_deps(packages_ini: str, dest: str, index_url: str) -> None:
+def _linux_setup_deps(packages_ini: str, dest: str) -> None:
     if os.environ.get("BUILD_IN_CONTAINER"):
         return
 
@@ -193,9 +191,7 @@ def _linux_setup_deps(packages_ini: str, dest: str, index_url: str) -> None:
         "python3",
         "-um",
         "build",
-        "--dest=/dist",
-        "--packages-ini=/packages.ini",
-        f"--index-url={index_url}",
+        *sys.argv[1:],
     )
     os.execvp(cmd[0], cmd)
 
@@ -263,7 +259,7 @@ def _linux_repair_wheel(filename: str, dest: str) -> None:
 
 
 class Platform(NamedTuple):
-    setup_deps: Callable[[str, str, str], None]
+    setup_deps: Callable[[str, str], None]
     install: Callable[[Package], ContextManager[None]]
     repair_wheel: Callable[[str, str], None]
 
@@ -348,7 +344,7 @@ def _build(package: Package, python: Python, dest: str) -> Wheel:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--index-url", required=True)
+    parser.add_argument("--pypi-url", required=True)
     parser.add_argument("--packages-ini", default="packages.ini")
     parser.add_argument("--dest", default="dist")
     args = parser.parse_args()
@@ -359,11 +355,11 @@ def main() -> int:
 
     os.makedirs(args.dest, exist_ok=True)
 
-    plat.setup_deps(args.packages_ini, args.dest, args.index_url)
+    plat.setup_deps(args.packages_ini, args.dest)
 
     pythons = [Python(version, _supported_tags(version)) for version in PYTHONS]
 
-    internal_wheels = _internal_wheels(args.index_url)
+    internal_wheels = _internal_wheels(args.pypi_url)
     built: list[Wheel] = []
 
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]
