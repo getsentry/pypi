@@ -4,6 +4,7 @@ import argparse
 import configparser
 import contextlib
 import functools
+import io
 import itertools
 import json
 import os.path
@@ -53,7 +54,6 @@ class Python(NamedTuple):
 
 class Wheel(NamedTuple):
     filename: str
-    download_url: str
 
 
 class Package(NamedTuple):
@@ -95,25 +95,10 @@ class Package(NamedTuple):
         )
 
 
-@functools.lru_cache(maxsize=None)
-def _get_wheels(index: str, name: str) -> tuple[Wheel, ...]:
-    url = f"{index}/pypi/{name}/json"
-    try:
-        resp = urllib.request.urlopen(url, timeout=10)
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return ()
-        else:
-            raise
-
-    contents = json.load(resp)
-
-    return tuple(
-        Wheel(dct["filename"], urllib.parse.urljoin(url, dct["url"]))
-        for lst in contents["releases"].values()
-        for dct in lst
-        if dct["packagetype"] == "bdist_wheel"
-    )
+def _internal_wheels(index: str) -> tuple[Wheel, ...]:
+    # dumb-pypi specific `packages.json` endpoint
+    resp = urllib.request.urlopen(f"{index}/packages.json")
+    return tuple(Wheel(json.loads(line)["filename"]) for line in io.TextIOWrapper(resp))
 
 
 def _darwin_setup_deps(packages_ini: str, dest: str, index_url: str) -> None:
@@ -323,7 +308,7 @@ def _download(package: Package, python: Python, dest: str) -> Wheel | None:
                 return None
             else:
                 shutil.copy(filename_full, dest)
-                return Wheel(filename, download_url="downloaded")
+                return Wheel(filename)
         else:
             return None
 
@@ -352,13 +337,13 @@ def _build(package: Package, python: Python, dest: str) -> Wheel:
 
             if filename.endswith("-any.whl"):  # purelib
                 shutil.copy(filename_full, dest)
-                return Wheel(filename, download_url="built")
+                return Wheel(filename)
             else:
                 repair_dir = os.path.join(tmpdir, "repair")
                 plat.repair_wheel(filename_full, repair_dir)
                 (filename,) = os.listdir(repair_dir)
                 shutil.copy(os.path.join(repair_dir, filename), dest)
-                return Wheel(filename, download_url="built+relocated")
+                return Wheel(filename)
 
 
 def main() -> int:
@@ -378,12 +363,12 @@ def main() -> int:
 
     pythons = [Python(version, _supported_tags(version)) for version in PYTHONS]
 
+    internal_wheels = _internal_wheels(args.index_url)
     built: list[Wheel] = []
 
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]
     for package, python in itertools.product(all_packages, pythons):
         print(f"=== {package.name}=={package.version}@{python.version}")
-        internal_wheels = _get_wheels(args.index_url, package.name)
 
         if package.satisfied_by(built, python.tags):
             print("-> just built!")
