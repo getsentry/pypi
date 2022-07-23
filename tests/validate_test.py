@@ -13,6 +13,11 @@ def test_pythons_to_check_no_pythons_raises_error():
     assert msg == "no interpreters found for frozenset()"
 
 
+def test_pythons_to_check_py2_ignored():
+    ret = validate._pythons_to_check(parse_tag("py2.py3-none-any"))
+    assert ret == ("python3.10", "python3.8", "python3.9")
+
+
 def test_pythons_to_check_py3_gives_all():
     ret = validate._pythons_to_check(parse_tag("py3-none-any"))
     assert ret == ("python3.10", "python3.8", "python3.9")
