@@ -2,34 +2,47 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os.path
 import platform
+import re
+import secrets
 import subprocess
+import sys
 import tempfile
 
-PY = (
-    (
-        "3.8.13+1",
-        {
-            "aarch64": "6efcad0a2e02625291597883d026b11c8f8cfa842642fd795cf1cb4a3c9e28b5",
-            "x86_64": "0b77405d69976ae45e3d054b11527d3b81c113478e0eed058251238be92b72be",
-        },
-    ),
-    (
-        "3.9.13+1",
-        {
-            "aarch64": "86b4c02878a82fbb88f391086d90cbe33cb928ab79282de54362e169e64021a4",
-            "x86_64": "106174840735a35d9441d699e358aec20e52c00afa8f87a34869595c5d367a3e",
-        },
-    ),
-    (
-        "3.10.5+1",
-        {
-            "aarch64": "c661c92558e7badc25d58f5d8f6c0ad648dfe6195373148f19e9aab5c1167797",
-            "x86_64": "5355312b9c1b882d8d576741ec5dcd902bc729c705c8a7ce5e387180d7951f81",
-        },
-    ),
-)
+# gsutil cp gs://sentry-dev-infra-assets/prebuilt-pythons/*+1.sha256sums -
+CHECKSUMS = """\
+f428fd956df8ad703004f6f6c6dc93552af854e0963004441cf3d565960fc6e1  python-3.10.5+1-macosx_11_0_x86_64.tgz
+73a2b3e91ab8b9c7408caee8e28fa76d4d37bc01b333a85f74c2a1d7d43d5e7b  python-3.10.5+1-macosx_12_0_arm64.tgz
+c661c92558e7badc25d58f5d8f6c0ad648dfe6195373148f19e9aab5c1167797  python-3.10.5+1-manylinux_2_28_aarch64.tgz
+5355312b9c1b882d8d576741ec5dcd902bc729c705c8a7ce5e387180d7951f81  python-3.10.5+1-manylinux_2_28_x86_64.tgz
+a3f1bb03af7897e8d7ba90ccbca8e706ff59077c85d3754f7788f6da5397d4d2  python-3.8.13+1-macosx_11_0_x86_64.tgz
+0143c8d2db4922a24d03eb3f78948360a39f7d18a992e35706add90fffc00517  python-3.8.13+1-macosx_12_0_arm64.tgz
+6efcad0a2e02625291597883d026b11c8f8cfa842642fd795cf1cb4a3c9e28b5  python-3.8.13+1-manylinux_2_28_aarch64.tgz
+0b77405d69976ae45e3d054b11527d3b81c113478e0eed058251238be92b72be  python-3.8.13+1-manylinux_2_28_x86_64.tgz
+4fbf34bd7889cf1211c518b461fa56d7e3107d83f59375100ad93783c6a105e0  python-3.9.13+1-macosx_11_0_x86_64.tgz
+3c9907da7eda5190f38b69e5e69809f3c27f525dc28a6fa682ae3e33289e6173  python-3.9.13+1-macosx_12_0_arm64.tgz
+86b4c02878a82fbb88f391086d90cbe33cb928ab79282de54362e169e64021a4  python-3.9.13+1-manylinux_2_28_aarch64.tgz
+106174840735a35d9441d699e358aec20e52c00afa8f87a34869595c5d367a3e  python-3.9.13+1-manylinux_2_28_x86_64.tgz
+"""
+VERSIONS = ("3.8.13+1", "3.9.13+1", "3.10.5+1")
+PLAT_TAG = {"linux": "manylinux", "darwin": "macosx"}
+PLAT_RE = re.compile(f"{PLAT_TAG[sys.platform]}_.+{platform.machine()}$")
+
+
+def _checksum_url(version: str) -> tuple[str, str]:
+    for line in CHECKSUMS.splitlines():
+        sha256, filename = line.split()
+        base, _ = os.path.splitext(filename)
+        _, f_version, plat = base.split("-")
+        if version == f_version and PLAT_RE.match(plat):
+            return (
+                sha256,
+                f"https://storage.googleapis.com/sentry-dev-infra-assets/prebuilt-pythons/{filename}",
+            )
+    else:
+        raise NotImplementedError(version, sys.platform, platform.machine())
 
 
 def main() -> int:
@@ -39,27 +52,21 @@ def main() -> int:
 
     os.makedirs(args.dest, exist_ok=True)
 
-    arch = platform.machine()
-    _, libc = platform.libc_ver()
-    libc = libc.replace(".", "_")
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        for version, hashes in PY:
-            expected = hashes[arch]
+    for version in VERSIONS:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            expected, url = _checksum_url(version)
 
             major, minor, *_ = version.split(".")
             dest = os.path.join(args.dest, f"cp{major}{minor}-cp{major}{minor}")
-
-            archive_name = f"python-{version}-manylinux_{libc}_{arch}.tgz"
-            url = f"https://storage.googleapis.com/sentry-dev-infra-assets/prebuilt-pythons/{archive_name}"
-            tgz_dest = os.path.join(tmpdir, archive_name)
+            tgz_dest = os.path.join(tmpdir, "python.tgz")
 
             curl_cmd = ("curl", "--silent", "--location", "--output", tgz_dest, url)
             subprocess.check_call(curl_cmd)
 
-            check = f"{expected}  {tgz_dest}\n".encode()
-            sha256sum_cmd = ("sha256sum", "--check", "--quiet", "-")
-            subprocess.run(sha256sum_cmd, check=True, input=check)
+            with open(tgz_dest, "rb") as f:
+                sha256 = hashlib.sha256(f.read()).hexdigest()
+            if not secrets.compare_digest(sha256, expected):
+                raise AssertionError(f"checksum mismatch {sha256=} {expected=}")
 
             os.makedirs(dest, exist_ok=True)
             tar_cmd = ("tar", "-C", dest, "--strip-components=1", "-xf", tgz_dest)
