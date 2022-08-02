@@ -33,3 +33,41 @@ jobs:
       with:
         name: dist-macos
         path: dist/*
+
+  cirrus:
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        task: [macos-arm64, linux-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+    steps:
+    - uses: getsentry/action-wait-for-cirrus@v1.0.0
+      with:
+        task: ${{ matrix.task }}
+      timeout-minutes: 60
+    - uses: actions/upload-artifact@v3
+      with:
+        name: dist-${{ matrix.task }}
+        path: dist/*
+
+  collect-and-deploy:
+    needs: [linux, macos, cirrus]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+    - run: pip install -r docker/requirements.txt
+    - uses: actions/download-artifact@v3
+      with:
+        path: dist
+    - run: python3 -um make_index --pypi-url https://pypi.devinfra.sentry.io --dest index
+    - uses: google-github-actions/auth@v0
+      with:
+        credentials_json: ${{ secrets.PYPI_DEVINFRA_SENTRY_IO }}
+    - uses: google-github-actions/setup-gcloud@v0
+    - run: python3 -uS bin/upload-artifacts
