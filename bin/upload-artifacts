@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import os.path
+import shlex
+import subprocess
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--index", default="index")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    cmds = (
+        # upload wheels first before the index
+        (
+            "gsutil",
+            "-m",  # parallel
+            "cp",
+            "-n",  # no-clobber
+            os.path.join(args.index, "wheels", "*"),
+            "gs://pypi.devinfra.sentry.io/wheels/",
+        ),
+        # upload everything else in clobber mode (may be updating pages)
+        (
+            "gsutil",
+            "-m",  # parallel
+            "cp",
+            "-r",  # recursive
+            *(
+                os.path.join(args.index, name)
+                for name in os.listdir(args.index)
+                if name != "wheels"
+            ),
+            "gs://pypi.devinfra.sentry.io",
+        ),
+    )
+
+    for cmd in cmds:
+        if args.dry_run:
+            print(f"would run: {shlex.join(cmd)}")
+        else:
+            subprocess.check_call(cmd)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
