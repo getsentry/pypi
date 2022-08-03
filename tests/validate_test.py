@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import zipfile
+
 import pytest
 from packaging.tags import parse_tag
 
@@ -27,3 +29,31 @@ def test_pythons_to_check_specific_cpython_tag():
     tag = "cp38-cp38-manylinux1_aarch64.whl"
     ret = validate._pythons_to_check(parse_tag(tag))
     assert ret == ("python3.8",)
+
+
+def test_top_import_top_level_txt(tmp_path):
+    whl = tmp_path.joinpath("cffi.whl")
+    with zipfile.ZipFile(whl, "w") as zipf:
+        with zipf.open("cffi-1.15.1.dist-info/top_level.txt", "w") as f:
+            f.write(b"_cffi_backend\ncffi\n")
+
+    assert validate._top_import(str(whl)) == "_cffi_backend,cffi"
+
+
+def test_top_import_record(tmp_path):
+    whl = tmp_path.joinpath("distlib.whl")
+    with zipfile.ZipFile(whl, "w") as zipf:
+        with zipf.open("distlib-0.3.4.dist-info/RECORD", "w") as f:
+            f.write(
+                # simplified from the actual contents
+                b"distlib-0.3.4.dist-info/RECORD,,\n"
+                b"distlib/__init__.py,sha256=y-rKDBB99QJ3N1PJGAXQo89ou615aAeBjV2brBxKgM8,581\n"
+                b"distlib/__pycache__/index.cpython-38.pyc,,\n"
+                b"distlib/compat.py,sha256=tfoMrj6tujk7G4UC2owL6ArgDuCKabgBxuJRGZSmpko,41259\n"
+                # not actually present but to demonstrate behaviour
+                b"distlib/subpkg/__init__.py,,\n"
+                b"_distlib_backend.cpython-38-x86_64-linux-gnu.so,,\n"
+                b"distlib_top.py,,\n"
+            )
+
+    assert validate._top_import(str(whl)) == "distlib,_distlib_backend,distlib_top"

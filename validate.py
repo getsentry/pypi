@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os.path
+import re
 import subprocess
 import sys
 import tempfile
@@ -9,6 +10,8 @@ import zipfile
 
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
+
+DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
 
 
 def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
@@ -27,6 +30,30 @@ def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
         raise AssertionError(f"no interpreters found for {tags}")
     else:
         return tuple(sorted(ret))
+
+
+def _top_import(whl: str) -> str:
+    with zipfile.ZipFile(whl) as zipf:
+        dist_info_names = {
+            os.path.basename(name): name
+            for name in zipf.namelist()
+            if DIST_INFO_RE.match(name)
+        }
+        if "top_level.txt" in dist_info_names:
+            with zipf.open(dist_info_names["top_level.txt"]) as f:
+                return ",".join(f.read().decode().splitlines())
+        elif "RECORD" in dist_info_names:
+            with zipf.open(dist_info_names["RECORD"]) as f:
+                pkgs = {}
+                for line_b in f:
+                    fname = line_b.decode().split(",")[0]
+                    if fname.endswith("/__init__.py"):
+                        pkgs[fname.split("/")[0]] = 1
+                    elif "/" not in fname and fname.endswith((".so", ".py")):
+                        pkgs[fname.split(".")[0]] = 1
+                return ",".join(pkgs)
+        else:
+            raise NotImplementedError("need top_level.txt or RECORD")
 
 
 def _validate(python: str, filename: str, index_url: str) -> None:
@@ -67,12 +94,7 @@ def _validate(python: str, filename: str, index_url: str) -> None:
         )
 
         print("=> importing")
-        with zipfile.ZipFile(filename) as zipf:
-            (top_level,) = (
-                name for name in zipf.namelist() if name.endswith("/top_level.txt")
-            )
-            with zipf.open(top_level, "r") as f:
-                imports = ",".join(f.read().decode().splitlines())
+        imports = _top_import(filename)
 
         subprocess.check_call((py, "-c", f"import {imports}"))
 
