@@ -6,6 +6,10 @@ on:
     branches: [main, test-me-*]
     paths: [docker/*, .github/workflows/image.yml]
 
+concurrency:
+  # serialize runs on the default branch
+  group: ${{ github.event_name == 'push' && github.workflow || github.sha }}
+
 jobs:
   image:
     strategy:
