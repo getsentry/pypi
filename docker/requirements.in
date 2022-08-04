@@ -1,6 +1,6 @@
 auditwheel>=5.1.2
 delocate>=0.10.2
-dumb-pypi>=1.11.0
+dumb-pypi>=1.13.0
 packaging>=21.3
 patchelf>=0.14.5;sys_platform=="linux"
 pip>=22.1.2
