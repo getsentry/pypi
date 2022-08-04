@@ -13,6 +13,10 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    if not os.listdir(os.path.join(args.index, "wheels")):
+        print("nothing to upload!")
+        return 0
+
     cmds = (
         # upload wheels first before the index
         (
