@@ -4,6 +4,10 @@ on:
   push:
     branches: [main, test-me-*]
 
+concurrency:
+  # serialize runs on the default branch
+  group: ${{ github.event_name == 'push' && github.workflow || github.sha }}
+
 jobs:
   linux:
     runs-on: ubuntu-latest
