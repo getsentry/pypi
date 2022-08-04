@@ -131,7 +131,7 @@ def _brew_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
     orig = dict(os.environ)
     os.environ.update(
-        CPP_FLAGS=" ".join(f"-I{path}" for path in _paths("lib")),
+        CFLAGS=" ".join(f"-I{path}" for path in _paths("include")),
         LDFLAGS=" ".join(f"-L{path}" for path in _paths("lib")),
         PKG_CONFIG_PATH=":".join(_paths("lib", "pkgconfig")),
     )
