@@ -10,6 +10,12 @@ platforms and achitectures required for sentry development.
 
 packages are configured in the `packages.ini` file.
 
+the easiest way to add a package and its dependencies is to use:
+
+```bash
+python3 -m add_pkg PKGNAME
+```
+
 each section is an individual package and has some additional instructions which helps for
 building.
 
