@@ -344,7 +344,7 @@ def _build(package: Package, python: Python, dest: str) -> Wheel:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pypi-url", required=True)
+    parser.add_argument("--pypi-base", required=True)
     parser.add_argument("--packages-ini", default="packages.ini")
     parser.add_argument("--dest", default="dist")
     args = parser.parse_args()
@@ -359,7 +359,7 @@ def main() -> int:
 
     pythons = [Python(version, _supported_tags(version)) for version in PYTHONS]
 
-    internal_wheels = _internal_wheels(args.pypi_url)
+    internal_wheels = _internal_wheels(args.pypi_base)
     built: list[Wheel] = []
 
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]

@@ -57,11 +57,12 @@ def _make_info(filename: str) -> dict[str, Any]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dist", default="dist")
+    parser.add_argument("--pypi-base", required=True)
     parser.add_argument("--pypi-url", required=True)
     parser.add_argument("--dest", required=True)
     args = parser.parse_args(argv)
 
-    url = urllib.parse.urljoin(args.pypi_url, "packages.json")
+    url = urllib.parse.urljoin(args.pypi_base, "packages.json")
     packages = [json.loads(line) for line in urllib.request.urlopen(url)]
     on_pypi = {package["filename"] for package in packages}
 

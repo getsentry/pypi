@@ -8,7 +8,7 @@ macos_task:
   - python3 -u docker/install-pythons --dest pythons
   - python3 -um venv venv && pip install -r docker/requirements.txt
   script:
-  - python3 -um build --pypi-url https://pypi.devinfra.sentry.io
+  - python3 -um build --pypi-base https://storage.googleapis.com/pypi.devinfra.sentry.io/
   - python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
   artifacts:
     path: dist/*
@@ -18,7 +18,7 @@ linux_task:
   arm_container:
     image: ghcr.io/getsentry/pypi-manylinux-arm64-ci
   script:
-  - python3 -um build --pypi-url https://pypi.devinfra.sentry.io
+  - python3 -um build --pypi-base https://storage.googleapis.com/pypi.devinfra.sentry.io/
   - python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
   artifacts:
     path: dist/*

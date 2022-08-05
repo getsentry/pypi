@@ -14,7 +14,7 @@ jobs:
     container: ghcr.io/getsentry/pypi-manylinux-amd64-ci
     steps:
     - uses: actions/checkout@v3
-    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
+    - run: python3 -um build --pypi-base https://storage.googleapis.com/pypi.devinfra.sentry.io/
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
     - uses: actions/upload-artifact@v3
       with:
@@ -31,7 +31,7 @@ jobs:
         echo "$PWD/pythons/cp310-cp310/bin" >> "$GITHUB_PATH"
         echo "$PWD/venv/bin" >> "$GITHUB_PATH"
     - run: python3 -um venv venv && pip install -r docker/requirements.txt
-    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
+    - run: python3 -um build --pypi-base https://storage.googleapis.com/pypi.devinfra.sentry.io/
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
     - uses: actions/upload-artifact@v3
       with:
@@ -69,7 +69,11 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         path: dist
-    - run: python3 -um make_index --pypi-url https://pypi.devinfra.sentry.io --dest index
+    - run: |
+        python3 -um make_index \
+          --pypi-base https://storage.googleapis.com/pypi.devinfra.sentry.io/ \
+          --pypi-url https://pypi.devinfra.sentry.io \
+          --dest index
     - uses: google-github-actions/auth@v0
       with:
         credentials_json: ${{ secrets.PYPI_DEVINFRA_SENTRY_IO }}

@@ -74,6 +74,7 @@ def test_main_new_package(tmp_path):
             (
                 f"--dist={dist}",
                 f"--dest={dest}",
+                "--pypi-base=http://example.com",
                 "--pypi-url=http://example.com",
             )
         )
@@ -100,6 +101,7 @@ def test_main_multiple_provide_same_package_first_wins(tmp_path):
             (
                 f"--dist={dist}",
                 f"--dest={dest}",
+                "--pypi-base=http://example.com",
                 "--pypi-url=http://example.com",
             )
         )
@@ -123,6 +125,7 @@ def test_main_previous_packages_exist(tmp_path):
             (
                 f"--dist={dist}",
                 f"--dest={dest}",
+                "--pypi-base=http://example.com",
                 "--pypi-url=http://example.com",
             )
         )
