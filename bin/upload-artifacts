@@ -6,6 +6,10 @@ import os.path
 import shlex
 import subprocess
 
+CACHE_ONE_HOUR = ("-h", "Cache-Control: public, max-age=3600")  # gcs default
+CACHE_FIVE_MINUTES = ("-h", "Cache-Control: public, max-age=300")
+CACHE_NO = ("-h", "Cache-Control: no-store")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -21,23 +25,33 @@ def main() -> int:
         # upload wheels first before the index
         (
             "gsutil",
+            *CACHE_ONE_HOUR,  # these are immutable so cache at default
             "-m",  # parallel
             "cp",
             "-n",  # no-clobber
             os.path.join(args.index, "wheels", "*"),
             "gs://pypi.devinfra.sentry.io/wheels/",
         ),
-        # upload everything else in clobber mode (may be updating pages)
+        # upload the site parts in clobber mode (may be updating pages)
         (
             "gsutil",
+            *CACHE_FIVE_MINUTES,  # shorter than default to make pip snappier
             "-m",  # parallel
             "cp",
             "-r",  # recursive
             *(
                 os.path.join(args.index, name)
                 for name in os.listdir(args.index)
-                if name != "wheels"
+                if name not in ("wheels", "packages.json")
             ),
+            "gs://pypi.devinfra.sentry.io",
+        ),
+        (
+            "gsutil",
+            # the packages.json file must be consistently read so no caching
+            *CACHE_NO,
+            "cp",
+            os.path.join(args.index, "packages.json"),
             "gs://pypi.devinfra.sentry.io",
         ),
     )
