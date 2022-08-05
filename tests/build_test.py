@@ -4,8 +4,10 @@ import io
 import os
 import shutil
 import subprocess
+import tarfile
 import urllib.error
 import urllib.request
+import zipfile
 from unittest import mock
 
 import pytest
@@ -15,6 +17,11 @@ from packaging.version import Version
 import build
 from build import Package
 from build import Wheel
+
+
+@pytest.mark.parametrize("ext", sorted(build.BINARY_EXTS))
+def test_all_binary_exts_start_with_dot(ext):
+    assert ext.startswith(".")
 
 
 def test_supported_tags_does_not_include_generic_linux():
@@ -142,3 +149,31 @@ def test_docker_run_docker():
             with mock.patch.object(os, "getgid", return_value=1000):
                 ret = build._docker_run()
     assert ret == ("docker", "run", "--user", "1000:1000")
+
+
+def test_likely_binary_exts_zip(tmp_path):
+    filename = tmp_path.joinpath("a-1.zip")
+    with zipfile.ZipFile(filename, "w") as zipf:
+        zipf.open("a-1/src/ext.py", "w").close()
+        zipf.open("a-1/src/_ext.c", "w").close()
+        zipf.open("a-1/src/_ext.pyx", "w").close()
+
+    assert build._likely_binary_exts(str(filename)) == {".c", ".pyx"}
+
+
+def test_likely_binary_exts_tgz(tmp_path):
+    filename = tmp_path.joinpath("a-1.tar.gz")
+    with tarfile.open(filename, "w:gz") as tarf:
+        tarf.addfile(tarfile.TarInfo("a-1/src/ext.py"))
+        tarf.addfile(tarfile.TarInfo("a-1/src/_ext.c"))
+
+    assert build._likely_binary_exts(str(filename)) == {".c"}
+
+
+def test_likely_binary_exts_ignores_test_files(tmp_path):
+    filename = tmp_path.joinpath("a-1.tar.gz")
+    with tarfile.open(filename, "w:gz") as tarf:
+        tarf.addfile(tarfile.TarInfo("a-1/test/_ext.pyd"))
+        tarf.addfile(tarfile.TarInfo("a-1/tests/_ext.c"))
+
+    assert build._likely_binary_exts(str(filename)) == set()
