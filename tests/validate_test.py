@@ -10,6 +10,16 @@ from packaging.tags import parse_tag
 import validate
 
 
+def test_info_nothing_supplied():
+    info = validate.Info.from_dct({})
+    assert info == validate.Info(validate_extras=None)
+
+
+def test_info_all_supplied():
+    info = validate.Info.from_dct({"validate_extras": "d"})
+    assert info == validate.Info(validate_extras="d")
+
+
 def test_pythons_to_check_no_pythons_raises_error():
     with pytest.raises(AssertionError) as excinfo:
         validate._pythons_to_check(frozenset())
@@ -33,16 +43,16 @@ def test_pythons_to_check_specific_cpython_tag():
     assert ret == ("python3.8",)
 
 
-def test_top_import_top_level_txt(tmp_path):
+def test_top_imports_top_level_txt(tmp_path):
     whl = tmp_path.joinpath("cffi.whl")
     with zipfile.ZipFile(whl, "w") as zipf:
         with zipf.open("cffi-1.15.1.dist-info/top_level.txt", "w") as f:
             f.write(b"_cffi_backend\ncffi\n")
 
-    assert validate._top_import(str(whl)) == "_cffi_backend,cffi"
+    assert validate._top_imports(str(whl)) == ["_cffi_backend", "cffi"]
 
 
-def test_top_import_record(tmp_path):
+def test_top_imports_record(tmp_path):
     whl = tmp_path.joinpath("distlib.whl")
     with zipfile.ZipFile(whl, "w") as zipf:
         with zipf.open("distlib-0.3.4.dist-info/RECORD", "w") as f:
@@ -58,7 +68,8 @@ def test_top_import_record(tmp_path):
                 b"distlib_top.py,,\n"
             )
 
-    assert validate._top_import(str(whl)) == "distlib,_distlib_backend,distlib_top"
+    expected = ["distlib", "_distlib_backend", "distlib_top"]
+    assert validate._top_imports(str(whl)) == expected
 
 
 @pytest.mark.parametrize(
