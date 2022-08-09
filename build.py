@@ -11,9 +11,11 @@ import platform
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import urllib.parse
 import urllib.request
+import zipfile
 from typing import Callable
 from typing import ContextManager
 from typing import Generator
@@ -28,6 +30,10 @@ from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
 PYTHONS = ((3, 8), (3, 9), (3, 10))
+
+BINARY_EXTS = frozenset(
+    (".c", ".cc", ".cpp", ".cxx", ".pxd", ".pxi", ".pyx", ".go", ".rs")
+)
 
 
 def _supported_tags(version: tuple[int, int]) -> frozenset[Tag]:
@@ -309,27 +315,79 @@ def _download(package: Package, python: Python, dest: str) -> Wheel | None:
             return None
 
 
-def _build(package: Package, python: Python, dest: str) -> Wheel:
+def _likely_binary_exts(sdist: str) -> set[str]:
+    if sdist.endswith(".zip"):
+        with zipfile.ZipFile(sdist) as zipf:
+            names = zipf.namelist()
+    else:
+        with tarfile.open(sdist) as tarf:
+            names = tarf.getnames()
+
+    ret = set()
+    for name in names:
+        if "/test/" in name or "/tests/" in name:
+            continue
+
+        _, ext = os.path.splitext(name)
+        if ext in BINARY_EXTS:
+            ret.add(ext)
+    return ret
+
+
+def _produced_binary(wheel: str) -> bool:
+    with zipfile.ZipFile(wheel) as zipf:
+        for name in zipf.namelist():
+            if name.endswith(".so"):
+                return True
+            # TODO: uwsgi
+        else:
+            return False
+
+
+def _build(package: Package, python: Python, dest: str, index_url: str) -> Wheel:
     with tempfile.TemporaryDirectory() as tmpdir:
         pip = (python.exe, "-mpip")
 
-        # TODO: should download sdist and then build against the index url
-        build_dir = os.path.join(tmpdir, "build")
         with plat.install(package):
+            # download the sdist first such that we can build against our index
+            sdist_dir = os.path.join(tmpdir, "sdist")
+            subprocess.check_call(
+                (
+                    *pip,
+                    "download",
+                    f"--dest={sdist_dir}",
+                    "--index-url=https://pypi.org/simple",
+                    "--no-deps",
+                    f"--no-binary={package.name}",
+                    f"{package.name}=={package.version}",
+                )
+            )
+            (sdist,) = os.listdir(sdist_dir)
+            sdist = os.path.join(sdist_dir, sdist)
+
+            build_dir = os.path.join(tmpdir, "build")
             subprocess.check_call(
                 (
                     *pip,
                     "wheel",
+                    f"--index-url={index_url}",
                     f"--wheel-dir={build_dir}",
                     "--no-deps",
-                    f"--no-binary={package.name}",
-                    f"{package.name}=={package.version}",
+                    sdist,
                 ),
                 # disable bulky "universal2" building
                 env={**os.environ, "ARCHFLAGS": ""},
             )
             (filename,) = os.listdir(build_dir)
             filename_full = os.path.join(build_dir, filename)
+
+            sdist_likely_exts = _likely_binary_exts(sdist)
+            if sdist_likely_exts and not _produced_binary(filename_full):
+                raise SystemExit(
+                    f"{package.name}=={package.version} expected binary as "
+                    f"sdist contains files with these extensions: "
+                    f'{", ".join(sorted(sdist_likely_exts))}'
+                )
 
             if filename.endswith("-any.whl"):  # purelib
                 shutil.copy(filename_full, dest)
@@ -352,6 +410,8 @@ def main() -> int:
     cfg = configparser.RawConfigParser()
     if not cfg.read(args.packages_ini):
         raise SystemExit(f"does not exist: {args.packages_ini}")
+
+    index_url = urllib.parse.urljoin(args.pypi_url, "simple")
 
     os.makedirs(args.dest, exist_ok=True)
 
@@ -377,7 +437,7 @@ def main() -> int:
                 built.append(downloaded_wheel)
                 print(f"-> downloaded! {downloaded_wheel.filename}")
             else:
-                built_wheel = _build(package, python, args.dest)
+                built_wheel = _build(package, python, args.dest, index_url)
                 built.append(built_wheel)
                 print(f"-> built! {built_wheel.filename}")
 
