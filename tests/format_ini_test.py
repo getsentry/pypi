@@ -119,3 +119,22 @@ brew_requires = librdkafka
 
     _, err = capsys.readouterr()
     assert err == f"{ini}: formatted\n"
+
+
+def test_removes_duplicates(capsys, tmp_path):
+    ini_src = """\
+[simplejson==3.17.2]
+[simplejson==3.17.2]
+"""
+    expected = """\
+[simplejson==3.17.2]
+"""
+    ini = tmp_path.joinpath("f.ini")
+    ini.write_text(ini_src)
+
+    assert format_ini.main((str(ini),)) == 1
+
+    assert ini.read_text() == expected
+
+    _, err = capsys.readouterr()
+    assert err == f"{ini}: formatted\n"

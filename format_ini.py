@@ -33,7 +33,7 @@ def _format_file(filename: str) -> int:
     with open(filename, encoding="UTF-8", newline="") as f:
         contents = f.read()
 
-    orig = configparser.RawConfigParser()
+    orig = configparser.RawConfigParser(strict=False)
     orig.read_string(contents)
 
     errors = []
