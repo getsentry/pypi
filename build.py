@@ -87,7 +87,9 @@ class Package(NamedTuple):
         apt_requires = tuple(dct.pop("apt_requires", "").split())
         brew_requires = tuple(dct.pop("brew_requires", "").split())
         ignore_wheels = tuple(dct.pop("ignore_wheels", "").split())
-        dct.pop("validate_extras", None)  # ignored while building
+        # ignore validate-only settings
+        for setting in ("validate_extras", "validate_incorrect_missing_deps"):
+            dct.pop(setting, None)
         if dct:
             raise ValueError(f"unexpected attrs for {key}: {sorted(dct)}")
 

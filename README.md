@@ -30,6 +30,8 @@ most packages won't need special build instructions and the section contents can
 [simplejson==3.17.6]
 ```
 
+### apt_requires / brew_requires
+
 some packages require special system-level build dependencies, these can be configured using
 `apt_requires` (linux) and `brew_requires` (macos)
 
@@ -46,6 +48,8 @@ brew_requires =
 some packages on pypi have incorrectly built wheels -- these can be ignored (forcing them to
 be built rather than imported):
 
+### ignore_wheels
+
 ```ini
 [grpcio==1.46.3]
 ignore_wheels = grpcio-1.46.3-cp310-cp310-macosx_10_10_universal2.whl
@@ -54,6 +58,8 @@ ignore_wheels = grpcio-1.46.3-cp310-cp310-macosx_10_10_universal2.whl
 ## validation
 
 after building the packages will be checked that they can install and import
+
+### validate_extras
 
 sometimes you may need to hint the validation tooling of additional requirements
 
@@ -64,4 +70,17 @@ dependency to use (the `black[d]` extra).  you can hint at this via
 ```ini
 [black==22.3.0]
 validate_extras = d
+```
+
+### validate_incorrect_missing_deps
+
+sometimes packages incorrectly specify their dependencies.  you can use this
+option to add import-time dependencies (though you should try and send a PR to
+fix those packages!)
+
+one example is `dictpath` which depends on `six` but doesn't list it:
+
+```ini
+[dictpath==0.1.3]
+validate_incorrect_missing_deps = six
 ```
