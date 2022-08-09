@@ -1,18 +1,30 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import os.path
 import re
 import subprocess
 import sys
 import tempfile
 import zipfile
+from typing import Mapping
+from typing import NamedTuple
 
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
+from packaging.version import Version
 
 DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
 DATA_SCRIPTS = re.compile(r"^[^/]+.data/scripts/[^/]+$")
+
+
+class Info(NamedTuple):
+    validate_extras: str | None
+
+    @classmethod
+    def from_dct(cls, dct: Mapping[str, str]) -> Info:
+        return cls(validate_extras=dct.get("validate_extras") or None)
 
 
 def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
@@ -33,7 +45,7 @@ def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
         return tuple(sorted(ret))
 
 
-def _top_import(whl: str) -> str:
+def _top_imports(whl: str) -> list[str]:
     with zipfile.ZipFile(whl) as zipf:
         dist_info_names = {
             os.path.basename(name): name
@@ -42,7 +54,7 @@ def _top_import(whl: str) -> str:
         }
         if "top_level.txt" in dist_info_names:
             with zipf.open(dist_info_names["top_level.txt"]) as f:
-                return ",".join(f.read().decode().splitlines())
+                return f.read().decode().splitlines()
         elif "RECORD" in dist_info_names:
             with zipf.open(dist_info_names["RECORD"]) as f:
                 pkgs = {}
@@ -52,7 +64,7 @@ def _top_import(whl: str) -> str:
                         pkgs[fname.split("/")[0]] = 1
                     elif "/" not in fname and fname.endswith((".so", ".py")):
                         pkgs[fname.split(".")[0]] = 1
-                return ",".join(pkgs)
+                return list(pkgs)
         else:
             raise NotImplementedError("need top_level.txt or RECORD")
 
@@ -108,7 +120,13 @@ else:  # pragma: darwin no cover
     _get_archs = _get_archs_linux
 
 
-def _validate(python: str, filename: str, index_url: str) -> None:
+def _validate(
+    *,
+    python: str,
+    filename: str,
+    info: Info,
+    index_url: str,
+) -> None:
     print(f"validating {python}: {filename}")
     with tempfile.TemporaryDirectory() as tmpdir:
         print("checking arch")
@@ -156,6 +174,11 @@ def _validate(python: str, filename: str, index_url: str) -> None:
         )
 
         print("=> installing")
+        if info.validate_extras is not None:
+            install_target = f"{filename}[{info.validate_extras}]"
+        else:
+            install_target = filename
+
         subprocess.check_call(
             (
                 py,
@@ -168,26 +191,41 @@ def _validate(python: str, filename: str, index_url: str) -> None:
                 f"--index-url={index_url}",
                 # allow just-built wheels to count too
                 f"--find-links={os.path.dirname(filename)}",
-                filename,
+                install_target,
             )
         )
 
         print("=> importing")
-        imports = _top_import(filename)
-
-        subprocess.check_call((py, "-c", f"import {imports}"))
+        for s in _top_imports(filename):
+            subprocess.check_call((py, "-c", f"__import__({s!r})"))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--index-url", required=True)
     parser.add_argument("--dist", default="dist")
+    parser.add_argument("--packages-ini", default="packages.ini")
     args = parser.parse_args()
 
+    cfg = configparser.ConfigParser()
+    if not cfg.read(args.packages_ini):
+        raise SystemExit(f"{args.packages_ini}: not found")
+
+    packages = {}
+    for k in cfg.sections():
+        pkg, _, version_s = k.partition("==")
+        packages[(pkg, Version(version_s))] = Info.from_dct(cfg[k])
+
     for filename in sorted(os.listdir(args.dist)):
-        _, _, _, wheel_tags = parse_wheel_filename(filename)
+        name, version, _, wheel_tags = parse_wheel_filename(filename)
+        info = packages[(name, version)]
         for python in _pythons_to_check(wheel_tags):
-            _validate(python, os.path.join(args.dist, filename), args.index_url)
+            _validate(
+                python=python,
+                filename=os.path.join(args.dist, filename),
+                info=info,
+                index_url=args.index_url,
+            )
 
     return 0
 

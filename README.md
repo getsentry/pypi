@@ -50,3 +50,18 @@ be built rather than imported):
 [grpcio==1.46.3]
 ignore_wheels = grpcio-1.46.3-cp310-cp310-macosx_10_10_universal2.whl
 ```
+
+## validation
+
+after building the packages will be checked that they can install and import
+
+sometimes you may need to hint the validation tooling of additional requirements
+
+an example is `black` which has a `blackd` top-level but requires an optional
+dependency to use (the `black[d]` extra).  you can hint at this via
+`validate_extras`
+
+```ini
+[black==22.3.0]
+validate_extras = d
+```
