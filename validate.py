@@ -21,10 +21,16 @@ DATA_SCRIPTS = re.compile(r"^[^/]+.data/scripts/[^/]+$")
 
 class Info(NamedTuple):
     validate_extras: str | None
+    validate_incorrect_missing_deps: tuple[str, ...]
 
     @classmethod
     def from_dct(cls, dct: Mapping[str, str]) -> Info:
-        return cls(validate_extras=dct.get("validate_extras") or None)
+        return cls(
+            validate_extras=dct.get("validate_extras") or None,
+            validate_incorrect_missing_deps=tuple(
+                dct.get("validate_incorrect_missing_deps", "").split()
+            ),
+        )
 
 
 def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
@@ -192,6 +198,7 @@ def _validate(
                 # allow just-built wheels to count too
                 f"--find-links={os.path.dirname(filename)}",
                 install_target,
+                *info.validate_incorrect_missing_deps,
             )
         )
 

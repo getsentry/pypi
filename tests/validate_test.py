@@ -12,12 +12,25 @@ import validate
 
 def test_info_nothing_supplied():
     info = validate.Info.from_dct({})
-    assert info == validate.Info(validate_extras=None)
+    expected = validate.Info(
+        validate_extras=None,
+        validate_incorrect_missing_deps=(),
+    )
+    assert info == expected
 
 
 def test_info_all_supplied():
-    info = validate.Info.from_dct({"validate_extras": "d"})
-    assert info == validate.Info(validate_extras="d")
+    info = validate.Info.from_dct(
+        {
+            "validate_extras": "d",
+            "validate_incorrect_missing_deps": "six",
+        }
+    )
+    expected = validate.Info(
+        validate_extras="d",
+        validate_incorrect_missing_deps=("six",),
+    )
+    assert info == expected
 
 
 def test_pythons_to_check_no_pythons_raises_error():
