@@ -55,6 +55,15 @@ be built rather than imported):
 ignore_wheels = grpcio-1.46.3-cp310-cp310-macosx_10_10_universal2.whl
 ```
 
+### require_binary
+
+a shortcut to ignore all purelib wheels is to utilize `require_binary`
+
+```ini
+[protobuf==4.21.5]
+require_binary = true
+```
+
 ## validation
 
 after building the packages will be checked that they can install and import

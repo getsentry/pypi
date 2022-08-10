@@ -50,6 +50,18 @@ def test_pythons_to_check_py3_gives_all():
     assert ret == ("python3.10", "python3.8", "python3.9")
 
 
+def test_pythons_to_check_abi3():
+    tag = "cp37-abi3-manylinux1_x86_64"
+    ret = validate._pythons_to_check(parse_tag(tag))
+    assert ret == ("python3.10", "python3.8", "python3.9")
+
+
+def test_pythons_to_check_minimum_abi3():
+    tag = "cp39-abi3-manylinux1_x86_64"
+    ret = validate._pythons_to_check(parse_tag(tag))
+    assert ret == ("python3.10", "python3.9")
+
+
 def test_pythons_to_check_specific_cpython_tag():
     tag = "cp38-cp38-manylinux1_aarch64.whl"
     ret = validate._pythons_to_check(parse_tag(tag))

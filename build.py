@@ -47,6 +47,10 @@ def _supported_tags(version: tuple[int, int]) -> frozenset[Tag]:
     )
 
 
+def _is_purelib(filename: str) -> bool:
+    return filename.endswith("-any.whl")
+
+
 class Python(NamedTuple):
     version: tuple[int, int]
     tags: frozenset[Tag]
@@ -66,6 +70,7 @@ class Package(NamedTuple):
     apt_requires: tuple[str, ...]
     brew_requires: tuple[str, ...]
     ignore_wheels: tuple[str, ...]
+    require_binary: bool
 
     def satisfied_by(
         self,
@@ -87,6 +92,7 @@ class Package(NamedTuple):
         apt_requires = tuple(dct.pop("apt_requires", "").split())
         brew_requires = tuple(dct.pop("brew_requires", "").split())
         ignore_wheels = tuple(dct.pop("ignore_wheels", "").split())
+        require_binary = json.loads(dct.pop("require_binary", "false"))
         # ignore validate-only settings
         for setting in ("validate_extras", "validate_incorrect_missing_deps"):
             dct.pop(setting, None)
@@ -99,6 +105,7 @@ class Package(NamedTuple):
             apt_requires=apt_requires,
             brew_requires=brew_requires,
             ignore_wheels=ignore_wheels,
+            require_binary=require_binary,
         )
 
 
@@ -311,6 +318,10 @@ def _download(package: Package, python: Python, dest: str) -> Wheel | None:
                 os.remove(filename_full)
                 print(f"-> ignoring: {filename}")
                 return None
+            elif package.require_binary and _is_purelib(filename):
+                os.remove(filename_full)
+                print(f"-> ignoring: {filename}")
+                return None
             else:
                 shutil.copy(filename_full, dest)
                 return Wheel(filename)
@@ -392,7 +403,7 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> Wheel
                     f'{", ".join(sorted(sdist_likely_exts))}'
                 )
 
-            if filename.endswith("-any.whl"):  # purelib
+            if _is_purelib(filename):
                 shutil.copy(filename_full, dest)
                 return Wheel(filename)
             else:

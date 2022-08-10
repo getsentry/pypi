@@ -37,6 +37,17 @@ def test_supported_tags_includes_purelib_tags():
     assert Tag("py38", "none", "any") in tags
 
 
+@pytest.mark.parametrize(
+    ("s", "expected"),
+    (
+        ("a-1-py3-none-any.whl", True),
+        ("a-1-cp36-abi3-manylinux1_x86_64.whl", False),
+    ),
+)
+def test_is_purelib(s, expected):
+    assert build._is_purelib(s) is expected
+
+
 def test_package_default():
     ret = Package.make("a==1", {})
     assert ret == Package(
@@ -45,6 +56,7 @@ def test_package_default():
         apt_requires=(),
         brew_requires=(),
         ignore_wheels=(),
+        require_binary=False,
     )
 
 
@@ -61,6 +73,7 @@ def test_package_parses_split_values():
         "apt_requires": "\npkg-config\nlibxslt1-dev",
         "brew_requires": "\npkg-config\nlibxml",
         "ignore_wheels": "\nwheel1.whl\nwheel2.whl",
+        "require_binary": "true",
     }
     ret = Package.make("a==1", dct)
     assert ret == Package(
@@ -69,6 +82,7 @@ def test_package_parses_split_values():
         apt_requires=("pkg-config", "libxslt1-dev"),
         brew_requires=("pkg-config", "libxml"),
         ignore_wheels=("wheel1.whl", "wheel2.whl"),
+        require_binary=True,
     )
 
 
