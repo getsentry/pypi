@@ -15,6 +15,7 @@ from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
+PYTHONS = ((3, 8), (3, 9), (3, 10))
 DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
 
 
@@ -32,15 +33,26 @@ class Info(NamedTuple):
         )
 
 
+def _parse_cp_tag(s: str) -> tuple[int, int]:
+    return int(s[2]), int(s[3:])
+
+
+def _py_exe(major: int, minor: int) -> str:
+    return f"python{major}.{minor}"
+
+
 def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
-    ret = set()
+    ret: set[str] = set()
     for tag in tags:
-        if tag.interpreter.startswith("cp"):
-            ret.add(f"python{tag.interpreter[2]}.{tag.interpreter[3:]}")
+        if tag.abi == "abi3" and tag.interpreter.startswith("cp"):
+            min_py = _parse_cp_tag(tag.interpreter)
+            ret.update(_py_exe(*py) for py in PYTHONS if py >= min_py)
+        elif tag.interpreter.startswith("cp"):
+            ret.add(_py_exe(*_parse_cp_tag(tag.interpreter)))
         elif tag.interpreter == "py2":
             continue
         elif tag.interpreter == "py3":
-            ret.update(("python3.8", "python3.9", "python3.10"))
+            ret.update(_py_exe(*py) for py in PYTHONS)
         else:
             raise AssertionError(f"unexpected tag: {tag}")
 
