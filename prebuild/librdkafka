@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import tempfile
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("librdkafka_rev")
+    parser.add_argument("prefix")
+    args = parser.parse_args()
+
+    # this script works best without instructions to the compiler / linker
+    for k in ("CPPFLAGS", "LDFLAGS", "LD_LIBRARY_PATH", "PKG_CONFIG_PATH"):
+        os.environ.pop(k, None)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print("cloning librdkafka...")
+        subprocess.check_call(
+            (
+                "git",
+                "clone",
+                "--quiet",
+                "https://github.com/edenhill/librdkafka",
+                tmpdir,
+            )
+        )
+        subprocess.check_call(
+            ("git", "-C", tmpdir, "checkout", "--quiet", args.librdkafka_rev)
+        )
+
+        # https://github.com/confluentinc/confluent-kafka-python/blob/cdc5f3b6b5d32c4b9f97ee4f648ad64857fb8223/tools/bootstrap-librdkafka.sh#L42
+        print("configuring...")
+        subprocess.check_call(
+            (
+                "./configure",
+                "--enable-static",
+                "--install-deps",
+                "--source-deps-only",
+                f"--prefix={args.prefix}",
+            ),
+            cwd=tmpdir,
+        )
+
+        print("building...")
+        subprocess.check_call(("make", "-j"), cwd=tmpdir)
+        print("testing...")
+        subprocess.check_call(
+            ("examples/rdkafka_example", "-X", "builtin.features"), cwd=tmpdir
+        )
+        print("installing...")
+        subprocess.check_call(("make", "install"), cwd=tmpdir)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

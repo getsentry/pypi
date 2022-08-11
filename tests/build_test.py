@@ -305,7 +305,7 @@ def test_prebuild_runs_and_prefixes_path(tmp_path, capfd):
         assert env == {
             "SOME": "VAR",
             "PATH": str(tmp_path.joinpath("prefix/bin")),
-            "CFLAGS": f"-I{tmp_path.joinpath('prefix/include')}",
+            "CPPFLAGS": f"-I{tmp_path.joinpath('prefix/include')}",
             "LDFLAGS": f"-L{tmp_path.joinpath('prefix/lib')}",
             "LD_LIBRARY_PATH": str(tmp_path.joinpath("prefix/lib")),
             "PKG_CONFIG_PATH": str(tmp_path.joinpath("prefix/lib/pkgconfig")),
