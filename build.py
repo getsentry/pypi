@@ -396,13 +396,28 @@ def _download(package: Package, python: Python, dest: str) -> Wheel | None:
             return None
 
 
-def _likely_binary_exts(sdist: str) -> set[str]:
+def _likely_binary(sdist: str) -> str | None:
     if sdist.endswith(".zip"):
         with zipfile.ZipFile(sdist) as zipf:
             names = zipf.namelist()
+
+            setup_py_contents = b""
+            for name in names:
+                if name.endswith("/setup.py"):
+                    with zipf.open(name) as f:
+                        setup_py_contents += f.read()
+
     else:
         with tarfile.open(sdist) as tarf:
             names = tarf.getnames()
+
+            setup_py_contents = b""
+            for name in names:
+                if name.endswith("/setup.py"):
+                    opt_f = tarf.extractfile(name)
+                    assert opt_f is not None
+                    with opt_f as f:
+                        setup_py_contents += f.read()
 
     ret = set()
     for name in names:
@@ -412,7 +427,13 @@ def _likely_binary_exts(sdist: str) -> set[str]:
         _, ext = os.path.splitext(name)
         if ext in BINARY_EXTS:
             ret.add(ext)
-    return ret
+
+    if ret:
+        return f'sdist contains files with these extensions: {", ".join(sorted(ret))}'
+    elif b"cffi_modules" in setup_py_contents:
+        return "sdist setup.py has `cffi_modules`"
+    else:
+        return None
 
 
 def _produced_binary(wheel: str) -> bool:
@@ -462,12 +483,11 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> Wheel
             (filename,) = os.listdir(build_dir)
             filename_full = os.path.join(build_dir, filename)
 
-            sdist_likely_exts = _likely_binary_exts(sdist)
-            if sdist_likely_exts and not _produced_binary(filename_full):
+            likely_binary_reason = _likely_binary(sdist)
+            if likely_binary_reason and not _produced_binary(filename_full):
                 raise SystemExit(
                     f"{package.name}=={package.version} expected binary as "
-                    f"sdist contains files with these extensions: "
-                    f'{", ".join(sorted(sdist_likely_exts))}'
+                    f"{likely_binary_reason}"
                 )
 
             if filename.endswith("-any.whl"):  # purelib

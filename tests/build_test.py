@@ -190,29 +190,68 @@ def test_prebuild_runs_and_prefixes_path(tmp_path, capfd):
     assert out == f"arg {tmp_path.joinpath('prefix')}\n"
 
 
-def test_likely_binary_exts_zip(tmp_path):
+def test_likely_binary_zip(tmp_path):
     filename = tmp_path.joinpath("a-1.zip")
     with zipfile.ZipFile(filename, "w") as zipf:
         zipf.open("a-1/src/ext.py", "w").close()
         zipf.open("a-1/src/_ext.c", "w").close()
         zipf.open("a-1/src/_ext.pyx", "w").close()
 
-    assert build._likely_binary_exts(str(filename)) == {".c", ".pyx"}
+    reason = build._likely_binary(str(filename))
+    assert reason == "sdist contains files with these extensions: .c, .pyx"
 
 
-def test_likely_binary_exts_tgz(tmp_path):
+def test_likely_binary_tgz(tmp_path):
     filename = tmp_path.joinpath("a-1.tar.gz")
     with tarfile.open(filename, "w:gz") as tarf:
         tarf.addfile(tarfile.TarInfo("a-1/src/ext.py"))
         tarf.addfile(tarfile.TarInfo("a-1/src/_ext.c"))
 
-    assert build._likely_binary_exts(str(filename)) == {".c"}
+    reason = build._likely_binary(str(filename))
+    assert reason == "sdist contains files with these extensions: .c"
 
 
-def test_likely_binary_exts_ignores_test_files(tmp_path):
+def test_likely_binary_cffi_zip(tmp_path):
+    filename = tmp_path.joinpath("a-1.zip")
+    with zipfile.ZipFile(filename, "w") as zipf:
+        with zipf.open("a-1/setup.py", "w") as f:
+            # similar to google-crc32c==1.1.2
+            f.write(
+                b"from setuptols import setup\n"
+                b"try:\n"
+                b"    setup(cffi_modules=['a_build.py:ffibuilder'])\n"
+                b"except:\n"
+                b"    setup()\n"
+            )
+
+    reason = build._likely_binary(str(filename))
+    assert reason == "sdist setup.py has `cffi_modules`"
+
+
+def test_likely_binary_cffi_tar(tmp_path):
+    filename = tmp_path.joinpath("a-1.tar.gz")
+    with tarfile.open(filename, "w:gz") as tarf:
+        # similar to google-crc32c==1.1.2
+        bio = io.BytesIO(
+            b"from setuptols import setup\n"
+            b"try:\n"
+            b"    setup(cffi_modules=['a_build.py:ffibuilder'])\n"
+            b"except:\n"
+            b"    setup()\n"
+        )
+        tar_info = tarfile.TarInfo(name="a-1/setup.py")
+        tar_info.size = len(bio.getvalue())
+        tarf.addfile(tar_info, bio)
+
+    reason = build._likely_binary(str(filename))
+    assert reason == "sdist setup.py has `cffi_modules`"
+
+
+def test_likely_binary_ignores_test_files(tmp_path):
     filename = tmp_path.joinpath("a-1.tar.gz")
     with tarfile.open(filename, "w:gz") as tarf:
         tarf.addfile(tarfile.TarInfo("a-1/test/_ext.pyd"))
         tarf.addfile(tarfile.TarInfo("a-1/tests/_ext.c"))
 
-    assert build._likely_binary_exts(str(filename)) == set()
+    reason = build._likely_binary(str(filename))
+    assert reason is None
