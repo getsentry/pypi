@@ -61,13 +61,6 @@ the script should set up whatever tools are necessary inside only that directory
 custom_prebuild = prebuild/crc32c 1.1.2
 ```
 
-### ignore_wheels
-
-```ini
-[grpcio==1.46.3]
-ignore_wheels = grpcio-1.46.3-cp310-cp310-macosx_10_10_universal2.whl
-```
-
 ## validation
 
 after building the packages will be checked that they can install and import

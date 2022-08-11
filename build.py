@@ -8,6 +8,7 @@ import itertools
 import json
 import os.path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +36,8 @@ PYTHONS = ((3, 8), (3, 9), (3, 10))
 BINARY_EXTS = frozenset(
     (".c", ".cc", ".cpp", ".cxx", ".pxd", ".pxi", ".pyx", ".go", ".rs")
 )
+
+DATA_SCRIPTS = re.compile(r"^[^/]+.data/scripts/[^/]+$")
 
 
 def _supported_tags(version: tuple[int, int]) -> frozenset[Tag]:
@@ -67,7 +70,6 @@ class Package(NamedTuple):
     apt_requires: tuple[str, ...]
     brew_requires: tuple[str, ...]
     custom_prebuild: tuple[str, ...]
-    ignore_wheels: tuple[str, ...]
 
     def satisfied_by(
         self,
@@ -89,7 +91,6 @@ class Package(NamedTuple):
         apt_requires = tuple(dct.pop("apt_requires", "").split())
         brew_requires = tuple(dct.pop("brew_requires", "").split())
         custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
-        ignore_wheels = tuple(dct.pop("ignore_wheels", "").split())
         # ignore validate-only settings
         for setting in ("validate_extras", "validate_incorrect_missing_deps"):
             dct.pop(setting, None)
@@ -102,7 +103,6 @@ class Package(NamedTuple):
             apt_requires=apt_requires,
             brew_requires=brew_requires,
             custom_prebuild=custom_prebuild,
-            ignore_wheels=ignore_wheels,
         )
 
 
@@ -167,6 +167,19 @@ def _darwin_install(package: Package) -> Generator[None, None, None]:
         if package.brew_requires:
             ctx.enter_context(_brew_install(package.brew_requires))
         yield
+
+
+def _darwin_get_archs(file: str) -> set[str]:
+    out = subprocess.check_output(("otool", "-hv", "-arch", "all", file))
+    lines = out.decode().splitlines()
+    if len(lines) % 4 != 0:
+        raise AssertionError(f"unexpected otool output:\n{lines}")
+
+    return {
+        line.split()[1].lower()
+        # output is in chunks of 4, we care about the 4th in each chunk
+        for line in lines[3::4]
+    }
 
 
 def _darwin_repair_wheel(filename: str, dest: str) -> None:
@@ -256,6 +269,17 @@ def _linux_install(package: Package) -> Generator[None, None, None]:
         yield
 
 
+def _linux_get_archs(file: str) -> set[str]:
+    # TODO: this could be more accurate
+    out = subprocess.check_output(("file", file)).decode()
+    if ", x86-64," in out:
+        return {"x86_64"}
+    elif ", ARM aarch64," in out:
+        return {"aarch64"}
+    else:
+        raise AssertionError(f"unknown architecture {file=}")
+
+
 def _linux_repair_wheel(filename: str, dest: str) -> None:
     _, libc = platform.libc_ver()
     libc = libc.replace(".", "_")
@@ -275,6 +299,7 @@ def _linux_repair_wheel(filename: str, dest: str) -> None:
 class Platform(NamedTuple):
     setup_deps: Callable[[str, str, str], None]
     install: Callable[[Package], ContextManager[None]]
+    get_archs: Callable[[str], set[str]]
     repair_wheel: Callable[[str, str], None]
 
 
@@ -282,15 +307,104 @@ plats = {
     "darwin": Platform(
         setup_deps=_darwin_setup_deps,
         install=_darwin_install,
+        get_archs=_darwin_get_archs,
         repair_wheel=_darwin_repair_wheel,
     ),
     "linux": Platform(
         setup_deps=_linux_setup_deps,
         install=_linux_install,
+        get_archs=_linux_get_archs,
         repair_wheel=_linux_repair_wheel,
     ),
 }
 plat = plats[sys.platform]
+
+
+def _expected_archs_for_wheel(filename: str) -> set[str]:
+    archs = set()
+    parts = os.path.splitext(os.path.basename(filename))[0].split("-")
+    for plat in parts[-1].split("."):
+        if plat == "any":
+            continue
+        elif plat.endswith("_intel"):  # macos
+            archs.add("x86_64")
+        elif plat.endswith("_universal2"):  # macos
+            archs.update(("x86_64", "arm64"))
+        else:
+            for arch in ("aarch64", "arm64", "x86_64"):
+                if plat.endswith(f"_{arch}"):
+                    archs.add(arch)
+                    break
+            else:
+                raise AssertionError(f"unexpected {plat=}")
+
+    return archs
+
+
+def _check_arch(filename: str) -> str | None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        archdir = os.path.join(tmpdir, "arch")
+        with zipfile.ZipFile(filename) as zipf:
+            arch_files = []
+            for name in zipf.namelist():
+                if name.endswith((".so", ".dylib")) or ".so." in name:
+                    arch_files.append(name)
+                elif DATA_SCRIPTS.match(name):
+                    with zipf.open(name) as f:
+                        if f.read(2) != b"#!":
+                            arch_files.append(name)
+
+            for arch_file in arch_files:
+                zipf.extract(arch_file, archdir)
+
+        archs = _expected_archs_for_wheel(filename)
+        for arch_file in arch_files:
+            archs_for_file = plat.get_archs(os.path.join(archdir, arch_file))
+            if (archs & archs_for_file) != archs:
+                return (
+                    f"-> {arch_file} has mismatched architectures\n"
+                    f'---> expected {", ".join(sorted(archs))}\n'
+                    f'---> received {", ".join(sorted(archs_for_file))}\n'
+                )
+
+    return None
+
+
+def _download(package: Package, python: Python, dest: str) -> Wheel | None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pip = (python.exe, "-mpip")
+
+        # first try to download the architecture-specific wheel
+        # it may be invalidated due to being packaged for the wrong arch
+        # in that case we'll try to additionally download a purelib wheel
+        for opt in ((), ("--platform=any",)):
+            if not subprocess.call(
+                (
+                    *pip,
+                    "download",
+                    f"--dest={tmpdir}",
+                    "--index-url=https://pypi.org/simple",
+                    "--no-deps",
+                    "--only-binary=:all:",
+                    *opt,
+                    f"{package.name}=={package.version}",
+                ),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ):
+                (filename,) = os.listdir(tmpdir)
+                filename_full = os.path.join(tmpdir, filename)
+
+                arch_reason = _check_arch(filename_full)
+                if arch_reason is not None:
+                    os.remove(filename_full)
+                    print(f"-> ignoring: {filename}\n{arch_reason}")
+                    continue
+                else:
+                    shutil.copy(filename_full, dest)
+                    return Wheel(filename)
+        else:
+            return None
 
 
 def _join_env(
@@ -364,36 +478,6 @@ def _prebuild(
         finally:
             env.clear()
             env.update(before)
-
-
-def _download(package: Package, python: Python, dest: str) -> Wheel | None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        pip = (python.exe, "-mpip")
-
-        if not subprocess.call(
-            (
-                *pip,
-                "download",
-                f"--dest={tmpdir}",
-                "--index-url=https://pypi.org/simple",
-                "--no-deps",
-                "--only-binary=:all:",
-                f"{package.name}=={package.version}",
-            ),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        ):
-            (filename,) = os.listdir(tmpdir)
-            filename_full = os.path.join(tmpdir, filename)
-            if filename in package.ignore_wheels:
-                os.remove(filename_full)
-                print(f"-> ignoring: {filename}")
-                return None
-            else:
-                shutil.copy(filename_full, dest)
-                return Wheel(filename)
-        else:
-            return None
 
 
 def _likely_binary(sdist: str) -> str | None:

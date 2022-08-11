@@ -45,7 +45,6 @@ def test_package_default():
         apt_requires=(),
         brew_requires=(),
         custom_prebuild=(),
-        ignore_wheels=(),
     )
 
 
@@ -62,7 +61,6 @@ def test_package_parses_split_values():
         "apt_requires": "\npkg-config\nlibxslt1-dev",
         "brew_requires": "\npkg-config\nlibxml",
         "custom_prebuild": "prebuild/crc32c deadbeef",
-        "ignore_wheels": "\nwheel1.whl\nwheel2.whl",
     }
     ret = Package.make("a==1", dct)
     assert ret == Package(
@@ -71,7 +69,6 @@ def test_package_parses_split_values():
         apt_requires=("pkg-config", "libxslt1-dev"),
         brew_requires=("pkg-config", "libxml"),
         custom_prebuild=("prebuild/crc32c", "deadbeef"),
-        ignore_wheels=("wheel1.whl", "wheel2.whl"),
     )
 
 
@@ -154,40 +151,65 @@ def test_docker_run_docker():
     assert ret == ("docker", "run", "--user", "1000:1000")
 
 
-def test_join_env_variable_not_present():
-    ret = build._join_env(name="PATH", value="/some/dir", sep=":", env={})
-    assert ret == "/some/dir"
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    (
+        ("a-1-py3-none-any.whl", set()),
+        ("a-1-py3-none-manylinux2014_x86_64.whl", {"x86_64"}),
+        ("a-1-py3-none-manylinux2014_aarch64.whl", {"aarch64"}),
+        ("a-1-py3-none-macosx_11_0_intel.whl", {"x86_64"}),
+        ("a-1-py3-none-macosx_11_0_arm64.whl", {"arm64"}),
+        ("a-1-py3-none-macosx_11_0_universal2.whl", {"x86_64", "arm64"}),
+        (
+            "a-1-py3-none-macosx_11_0_x86_64.macosx_11_0_arm64.whl",
+            {"x86_64", "arm64"},
+        ),
+    ),
+)
+def test_expected_archs_for_wheel(filename, expected):
+    assert build._expected_archs_for_wheel(filename) == expected
 
 
-def test_join_env_variable_present():
-    env = {"PATH": "/bin:/usr/bin"}
-    ret = build._join_env(name="PATH", value="/some/dir", sep=":", env=env)
-    assert ret == "/some/dir:/bin:/usr/bin"
+def test_get_archs_darwin_single_arch():
+    out = b"""\
+./simplejson/_speedups.cpython-38-darwin.so:
+Mach header
+      magic  cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+MH_MAGIC_64    ARM64        ALL  0x00      BUNDLE    14       1416   NOUNDEFS DYLDLINK TWOLEVEL
+"""
+    with mock.patch.object(subprocess, "check_output", return_value=out):
+        assert build._darwin_get_archs("somefile.so") == {"arm64"}
 
 
-def test_prebuild_noop_without_command(tmp_path):
-    pkg = Package.make("a==1", {})
-    env = {"SOME": "VAR"}
-    with build._prebuild(pkg, str(tmp_path), env=env):
-        assert env == {"SOME": "VAR"}
-    assert env == {"SOME": "VAR"}
+def test_get_archs_darwin_multi_arch():
+    out = b"""\
+./google_crc32c/_crc32c.cpython-38-darwin.so (architecture x86_64):
+Mach header
+      magic  cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+MH_MAGIC_64   X86_64        ALL  0x00      BUNDLE    14       1312   NOUNDEFS DYLDLINK TWOLEVEL
+./google_crc32c/_crc32c.cpython-38-darwin.so (architecture arm64):
+Mach header
+      magic  cputype cpusubtype  caps    filetype ncmds sizeofcmds      flags
+MH_MAGIC_64    ARM64        ALL  0x00      BUNDLE    15       1320   NOUNDEFS DYLDLINK TWOLEVEL
+"""
+    with mock.patch.object(subprocess, "check_output", return_value=out):
+        assert build._darwin_get_archs("somefile.so") == {"arm64", "x86_64"}
 
 
-def test_prebuild_runs_and_prefixes_path(tmp_path, capfd):
-    pkg = Package.make("a==1", {"custom_prebuild": "echo arg"})
-    env = {"SOME": "VAR"}
-    with build._prebuild(pkg, str(tmp_path), env=env):
-        assert env == {
-            "SOME": "VAR",
-            "PATH": str(tmp_path.joinpath("prefix/bin")),
-            "CFLAGS": f"-I{tmp_path.joinpath('prefix/include')}",
-            "LDFLAGS": f"-L{tmp_path.joinpath('prefix/lib')}",
-            "LD_LIBRARY_PATH": str(tmp_path.joinpath("prefix/lib")),
-            "PKG_CONFIG_PATH": str(tmp_path.joinpath("prefix/lib/pkgconfig")),
-        }
-    assert env == {"SOME": "VAR"}
-    out, _ = capfd.readouterr()
-    assert out == f"arg {tmp_path.joinpath('prefix')}\n"
+def test_get_archs_linux_x86_64():
+    out = b"""\
+venv/bin/uwsgi: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=be830dfcdbb9a7a90cf0687ba4cecde8951db1e0, for GNU/Linux 3.2.0, with debug_info, not stripped
+"""
+    with mock.patch.object(subprocess, "check_output", return_value=out):
+        assert build._linux_get_archs("somefile.so") == {"x86_64"}
+
+
+def test_get_archs_linux_aarch64():
+    out = b"""\
+simplejson/_speedups.cpython-37m-aarch64-linux-gnu.so: ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=77175a0e0fc131e1ad0f84daaaaee89c5f89c5b0, with debug_info, not stripped
+"""
+    with mock.patch.object(subprocess, "check_output", return_value=out):
+        assert build._linux_get_archs("somefile.so") == {"aarch64"}
 
 
 def test_likely_binary_zip(tmp_path):
@@ -255,3 +277,39 @@ def test_likely_binary_ignores_test_files(tmp_path):
 
     reason = build._likely_binary(str(filename))
     assert reason is None
+
+
+def test_join_env_variable_not_present():
+    ret = build._join_env(name="PATH", value="/some/dir", sep=":", env={})
+    assert ret == "/some/dir"
+
+
+def test_join_env_variable_present():
+    env = {"PATH": "/bin:/usr/bin"}
+    ret = build._join_env(name="PATH", value="/some/dir", sep=":", env=env)
+    assert ret == "/some/dir:/bin:/usr/bin"
+
+
+def test_prebuild_noop_without_command(tmp_path):
+    pkg = Package.make("a==1", {})
+    env = {"SOME": "VAR"}
+    with build._prebuild(pkg, str(tmp_path), env=env):
+        assert env == {"SOME": "VAR"}
+    assert env == {"SOME": "VAR"}
+
+
+def test_prebuild_runs_and_prefixes_path(tmp_path, capfd):
+    pkg = Package.make("a==1", {"custom_prebuild": "echo arg"})
+    env = {"SOME": "VAR"}
+    with build._prebuild(pkg, str(tmp_path), env=env):
+        assert env == {
+            "SOME": "VAR",
+            "PATH": str(tmp_path.joinpath("prefix/bin")),
+            "CFLAGS": f"-I{tmp_path.joinpath('prefix/include')}",
+            "LDFLAGS": f"-L{tmp_path.joinpath('prefix/lib')}",
+            "LD_LIBRARY_PATH": str(tmp_path.joinpath("prefix/lib")),
+            "PKG_CONFIG_PATH": str(tmp_path.joinpath("prefix/lib/pkgconfig")),
+        }
+    assert env == {"SOME": "VAR"}
+    out, _ = capfd.readouterr()
+    assert out == f"arg {tmp_path.joinpath('prefix')}\n"

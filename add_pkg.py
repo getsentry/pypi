@@ -51,8 +51,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         for k, v in cfg.items():
             if k.startswith(f"{name}=="):
                 copy_from = dict(v)
-        # setting is only useful for 1 version
-        copy_from.pop("ignore_wheels", None)
 
         cfg[key] = copy_from
 
