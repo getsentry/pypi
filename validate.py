@@ -16,7 +16,6 @@ from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
 DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
-DATA_SCRIPTS = re.compile(r"^[^/]+.data/scripts/[^/]+$")
 
 
 class Info(NamedTuple):
@@ -75,57 +74,6 @@ def _top_imports(whl: str) -> list[str]:
             raise NotImplementedError("need top_level.txt or RECORD")
 
 
-def _expected_archs_for_wheel(filename: str) -> set[str]:
-    archs = set()
-    parts = os.path.splitext(os.path.basename(filename))[0].split("-")
-    for plat in parts[-1].split("."):
-        if plat == "any":
-            continue
-        elif plat.endswith("_intel"):  # macos
-            archs.add("x86_64")
-        elif plat.endswith("_universal2"):  # macos
-            archs.update(("x86_64", "arm64"))
-        else:
-            for arch in ("aarch64", "arm64", "x86_64"):
-                if plat.endswith(f"_{arch}"):
-                    archs.add(arch)
-                    break
-            else:
-                raise AssertionError(f"unexpected {plat=}")
-
-    return archs
-
-
-def _get_archs_darwin(file: str) -> set[str]:
-    out = subprocess.check_output(("otool", "-hv", "-arch", "all", file))
-    lines = out.decode().splitlines()
-    if len(lines) % 4 != 0:
-        raise AssertionError(f"unexpected otool output:\n{lines}")
-
-    return {
-        line.split()[1].lower()
-        # output is in chunks of 4, we care about the 4th in each chunk
-        for line in lines[3::4]
-    }
-
-
-def _get_archs_linux(file: str) -> set[str]:
-    # TODO: this could be more accurate
-    out = subprocess.check_output(("file", file)).decode()
-    if ", x86-64," in out:
-        return {"x86_64"}
-    elif ", ARM aarch64," in out:
-        return {"aarch64"}
-    else:
-        raise AssertionError(f"unknown architecture {file=}")
-
-
-if sys.platform == "darwin":  # pragma: darwin cover
-    _get_archs = _get_archs_darwin
-else:  # pragma: darwin no cover
-    _get_archs = _get_archs_linux
-
-
 def _validate(
     *,
     python: str,
@@ -135,32 +83,6 @@ def _validate(
 ) -> None:
     print(f"validating {python}: {filename}")
     with tempfile.TemporaryDirectory() as tmpdir:
-        print("checking arch")
-        archdir = os.path.join(tmpdir, "arch")
-        with zipfile.ZipFile(filename) as zipf:
-            arch_files = []
-            for name in zipf.namelist():
-                if name.endswith((".so", ".dylib")) or ".so." in name:
-                    arch_files.append(name)
-                elif DATA_SCRIPTS.match(name):
-                    with zipf.open(name) as f:
-                        if f.read(2) != b"#!":
-                            arch_files.append(name)
-
-            for arch_file in arch_files:
-                zipf.extract(arch_file, archdir)
-
-        archs = _expected_archs_for_wheel(filename)
-        for arch_file in arch_files:
-            archs_for_file = _get_archs(os.path.join(archdir, arch_file))
-            if (archs & archs_for_file) != archs:
-                raise SystemExit(
-                    f"-> {arch_file} has mismatched architectures\n"
-                    f"---> you may be able to fix this with `ignore_wheels = {os.path.basename(filename)}`\n"
-                    f'---> expected {", ".join(sorted(archs))}\n'
-                    f'---> received {", ".join(sorted(archs_for_file))}\n'
-                )
-
         print("creating env")
         venv = os.path.join(tmpdir, "venv")
         py = os.path.join(venv, "bin", "python")
