@@ -138,3 +138,21 @@ def test_removes_duplicates(capsys, tmp_path):
 
     _, err = capsys.readouterr()
     assert err == f"{ini}: formatted\n"
+
+
+def test_does_not_reformat_custom_prebuild(capsys, tmp_path):
+    ini_src = """\
+[google-crc32c==1.3.0]
+apt_requires = cmake
+brew_requires = cmake
+custom_prebuild = prebuild/crc32 1.1.2
+"""
+    ini = tmp_path.joinpath("f.ini")
+    ini.write_text(ini_src)
+
+    assert format_ini.main((str(ini),)) == 0
+
+    assert ini.read_text() == ini_src
+
+    _, err = capsys.readouterr()
+    assert err == ""

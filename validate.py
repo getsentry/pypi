@@ -153,7 +153,7 @@ def _validate(
         archs = _expected_archs_for_wheel(filename)
         for arch_file in arch_files:
             archs_for_file = _get_archs(os.path.join(archdir, arch_file))
-            if archs_for_file != archs:
+            if (archs & archs_for_file) != archs:
                 raise SystemExit(
                     f"-> {arch_file} has mismatched architectures\n"
                     f"---> you may be able to fix this with `ignore_wheels = {os.path.basename(filename)}`\n"

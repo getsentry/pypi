@@ -20,6 +20,7 @@ from typing import Callable
 from typing import ContextManager
 from typing import Generator
 from typing import Mapping
+from typing import MutableMapping
 from typing import NamedTuple
 
 from packaging.tags import compatible_tags
@@ -65,6 +66,7 @@ class Package(NamedTuple):
     version: Version
     apt_requires: tuple[str, ...]
     brew_requires: tuple[str, ...]
+    custom_prebuild: tuple[str, ...]
     ignore_wheels: tuple[str, ...]
 
     def satisfied_by(
@@ -86,6 +88,7 @@ class Package(NamedTuple):
         dct = dict(val)
         apt_requires = tuple(dct.pop("apt_requires", "").split())
         brew_requires = tuple(dct.pop("brew_requires", "").split())
+        custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
         ignore_wheels = tuple(dct.pop("ignore_wheels", "").split())
         # ignore validate-only settings
         for setting in ("validate_extras", "validate_incorrect_missing_deps"):
@@ -98,6 +101,7 @@ class Package(NamedTuple):
             version=Version(version_s),
             apt_requires=apt_requires,
             brew_requires=brew_requires,
+            custom_prebuild=custom_prebuild,
             ignore_wheels=ignore_wheels,
         )
 
@@ -108,7 +112,7 @@ def _internal_wheels(index: str) -> tuple[Wheel, ...]:
     return tuple(Wheel(json.loads(line)["filename"]) for line in resp)
 
 
-def _darwin_setup_deps(packages_ini: str, dest: str) -> None:
+def _darwin_setup_deps(packages_ini: str, dest: str, pypi_url: str) -> None:
     """darwin requires no setup"""
 
 
@@ -182,7 +186,7 @@ def _docker_run() -> tuple[str, ...]:
         return ("docker", "run", "--user", f"{os.getuid()}:{os.getgid()}")
 
 
-def _linux_setup_deps(packages_ini: str, dest: str) -> None:
+def _linux_setup_deps(packages_ini: str, dest: str, pypi_url: str) -> None:
     if os.environ.get("BUILD_IN_CONTAINER"):
         return
 
@@ -193,14 +197,15 @@ def _linux_setup_deps(packages_ini: str, dest: str) -> None:
         "--rm",
         f"--volume={os.path.abspath(packages_ini)}:/packages.ini:ro",
         f"--volume={os.path.abspath(dest)}:/dist:rw",
-        # TODO: if we target 3.9+: __file__ is an abspath
-        f"--volume={os.path.abspath(__file__)}:/{os.path.basename(__file__)}:ro",
-        "--workdir=/",
+        f"--volume={os.path.dirname(os.path.abspath(__file__))}:/src:ro",
+        "--workdir=/src",
         IMAGE_NAME,
         "python3",
         "-um",
         "build",
-        *sys.argv[1:],
+        "--dest=/dist",
+        "--packages-ini=/packages.ini",
+        f"--pypi-url={pypi_url}",
     )
     os.execvp(cmd[0], cmd)
 
@@ -268,7 +273,7 @@ def _linux_repair_wheel(filename: str, dest: str) -> None:
 
 
 class Platform(NamedTuple):
-    setup_deps: Callable[[str, str], None]
+    setup_deps: Callable[[str, str, str], None]
     install: Callable[[Package], ContextManager[None]]
     repair_wheel: Callable[[str, str], None]
 
@@ -286,6 +291,79 @@ plats = {
     ),
 }
 plat = plats[sys.platform]
+
+
+def _join_env(
+    *,
+    name: str,
+    value: str,
+    sep: str,
+    env: Mapping[str, str] | None = None,
+) -> str:
+    if env is None:
+        env = os.environ
+
+    if name in env:
+        return f"{value}{sep}{env[name]}"
+    else:
+        return value
+
+
+@contextlib.contextmanager
+def _prebuild(
+    package: Package, tmpdir: str, *, env: MutableMapping[str, str] | None = None
+) -> Generator[None, None, None]:
+    if env is None:
+        env = os.environ
+
+    if not package.custom_prebuild:
+        yield
+    else:
+        prefix = os.path.join(tmpdir, "prefix")
+        os.makedirs(prefix, exist_ok=True)
+
+        def _prefix_path(*parts: str) -> str:
+            return os.path.join(prefix, *parts)
+
+        subprocess.check_call((*package.custom_prebuild, prefix))
+        before = {**env}
+        env.update(
+            PATH=_join_env(
+                name="PATH",
+                value=_prefix_path("bin"),
+                sep=os.pathsep,
+                env=env,
+            ),
+            CFLAGS=_join_env(
+                name="CFLAGS",
+                value=f"-I{_prefix_path('include')}",
+                sep=" ",
+                env=env,
+            ),
+            LDFLAGS=_join_env(
+                name="LDFLAGS",
+                value=f"-L{_prefix_path('lib')}",
+                sep=" ",
+                env=env,
+            ),
+            LD_LIBRARY_PATH=_join_env(
+                name="LD_LIBRARY_PATH",
+                value=_prefix_path("lib"),
+                sep=os.pathsep,
+                env=env,
+            ),
+            PKG_CONFIG_PATH=_join_env(
+                name="PKG_CONFIG_PATH",
+                value=_prefix_path("lib", "pkgconfig"),
+                sep=os.pathsep,
+                env=env,
+            ),
+        )
+        try:
+            yield
+        finally:
+            env.clear()
+            env.update(before)
 
 
 def _download(package: Package, python: Python, dest: str) -> Wheel | None:
@@ -351,7 +429,7 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> Wheel
     with tempfile.TemporaryDirectory() as tmpdir:
         pip = (python.exe, "-mpip")
 
-        with plat.install(package):
+        with plat.install(package), _prebuild(package, tmpdir):
             # download the sdist first such that we can build against our index
             sdist_dir = os.path.join(tmpdir, "sdist")
             subprocess.check_call(
@@ -418,7 +496,7 @@ def main() -> int:
 
     os.makedirs(args.dest, exist_ok=True)
 
-    plat.setup_deps(args.packages_ini, args.dest)
+    plat.setup_deps(args.packages_ini, args.dest, args.pypi_url)
 
     pythons = [Python(version, _supported_tags(version)) for version in PYTHONS]
 

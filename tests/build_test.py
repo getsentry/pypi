@@ -44,6 +44,7 @@ def test_package_default():
         version=Version("1"),
         apt_requires=(),
         brew_requires=(),
+        custom_prebuild=(),
         ignore_wheels=(),
     )
 
@@ -60,6 +61,7 @@ def test_package_parses_split_values():
     dct = {
         "apt_requires": "\npkg-config\nlibxslt1-dev",
         "brew_requires": "\npkg-config\nlibxml",
+        "custom_prebuild": "prebuild/crc32c deadbeef",
         "ignore_wheels": "\nwheel1.whl\nwheel2.whl",
     }
     ret = Package.make("a==1", dct)
@@ -68,6 +70,7 @@ def test_package_parses_split_values():
         version=Version("1"),
         apt_requires=("pkg-config", "libxslt1-dev"),
         brew_requires=("pkg-config", "libxml"),
+        custom_prebuild=("prebuild/crc32c", "deadbeef"),
         ignore_wheels=("wheel1.whl", "wheel2.whl"),
     )
 
@@ -149,6 +152,42 @@ def test_docker_run_docker():
             with mock.patch.object(os, "getgid", return_value=1000):
                 ret = build._docker_run()
     assert ret == ("docker", "run", "--user", "1000:1000")
+
+
+def test_join_env_variable_not_present():
+    ret = build._join_env(name="PATH", value="/some/dir", sep=":", env={})
+    assert ret == "/some/dir"
+
+
+def test_join_env_variable_present():
+    env = {"PATH": "/bin:/usr/bin"}
+    ret = build._join_env(name="PATH", value="/some/dir", sep=":", env=env)
+    assert ret == "/some/dir:/bin:/usr/bin"
+
+
+def test_prebuild_noop_without_command(tmp_path):
+    pkg = Package.make("a==1", {})
+    env = {"SOME": "VAR"}
+    with build._prebuild(pkg, str(tmp_path), env=env):
+        assert env == {"SOME": "VAR"}
+    assert env == {"SOME": "VAR"}
+
+
+def test_prebuild_runs_and_prefixes_path(tmp_path, capfd):
+    pkg = Package.make("a==1", {"custom_prebuild": "echo arg"})
+    env = {"SOME": "VAR"}
+    with build._prebuild(pkg, str(tmp_path), env=env):
+        assert env == {
+            "SOME": "VAR",
+            "PATH": str(tmp_path.joinpath("prefix/bin")),
+            "CFLAGS": f"-I{tmp_path.joinpath('prefix/include')}",
+            "LDFLAGS": f"-L{tmp_path.joinpath('prefix/lib')}",
+            "LD_LIBRARY_PATH": str(tmp_path.joinpath("prefix/lib")),
+            "PKG_CONFIG_PATH": str(tmp_path.joinpath("prefix/lib/pkgconfig")),
+        }
+    assert env == {"SOME": "VAR"}
+    out, _ = capfd.readouterr()
+    assert out == f"arg {tmp_path.joinpath('prefix')}\n"
 
 
 def test_likely_binary_exts_zip(tmp_path):

@@ -48,6 +48,19 @@ brew_requires =
 some packages on pypi have incorrectly built wheels -- these can be ignored (forcing them to
 be built rather than imported):
 
+### custom_prebuild
+
+sometimes the dependencies aren't packaged for apt / brew and you need a custom
+script to set them up.  this script will be passed a single "prefix" directory
+(which contains the standard `bin` / `lib` / `include` / etc. structure).
+
+the script should set up whatever tools are necessary inside only that directory
+
+```ini
+[google-crc32c==1.3.0]
+custom_prebuild = prebuild/crc32c 1.1.2
+```
+
 ### ignore_wheels
 
 ```ini

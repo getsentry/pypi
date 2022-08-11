@@ -10,6 +10,8 @@ from typing import Sequence
 from packaging.utils import canonicalize_name
 from packaging.version import Version
 
+_NO_FORMAT = {"custom_prebuild"}
+
 _PKG_RE = re.compile("^.*==.*$")
 _TRAILING_WS = re.compile(" +\n")
 
@@ -54,7 +56,10 @@ def _format_file(filename: str) -> int:
         cfg.add_section(newsection)
 
         for k, v in sorted(orig[section].items()):
-            cfg[newsection][k] = _format_value(v)
+            if k not in _NO_FORMAT:
+                cfg[newsection][k] = _format_value(v)
+            else:
+                cfg[newsection][k] = v
 
     cfg_sio = io.StringIO()
     cfg.write(cfg_sio)
