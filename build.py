@@ -609,12 +609,13 @@ def main() -> int:
 
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]
     for package, python in itertools.product(all_packages, pythons):
+        if package.satisfied_by(internal_wheels, python.tags):
+            continue
+
         print(f"=== {package.name}=={package.version}@{python.version}")
 
         if package.satisfied_by(built, python.tags):
             print("-> just built!")
-        elif package.satisfied_by(internal_wheels, python.tags):
-            print("-> already built!")
         else:
             print("-> building...")
             downloaded_wheel = _download(package, python, args.dest)
