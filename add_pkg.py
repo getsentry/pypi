@@ -38,6 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     cfg = configparser.ConfigParser()
     assert cfg.read(args.packages_ini)
+    pkgs_latest = dict(k.split("==", 1) for k in cfg.sections())
 
     for name, version in deps:
         key = f"{name}=={version}"
@@ -47,10 +48,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"{key}: adding...")
 
         # find the best candidate to copy config from
-        copy_from = {}
-        for k, v in cfg.items():
-            if k.startswith(f"{name}=="):
-                copy_from = dict(v)
+        if name in pkgs_latest:
+            copy_from = dict(cfg[f"{name}=={pkgs_latest[name]}"])
+        else:
+            copy_from = {}
 
         cfg[key] = copy_from
 

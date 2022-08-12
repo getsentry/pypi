@@ -20,6 +20,20 @@ def pretend_pip(tmp_path):
             yield tmp
 
 
+def test_new_pkg(pretend_pip, tmp_path, capsys):
+    pretend_pip.joinpath("a-1-py3-none-any.whl").touch()
+
+    packages_ini = tmp_path.joinpath("packages.ini")
+    packages_ini.write_text("[b==1]\n")
+
+    assert add_pkg.main(("a", f"--packages-ini={packages_ini}")) == 0
+
+    assert packages_ini.read_text() == "[a==1]\n\n[b==1]\n"
+
+    out, _ = capsys.readouterr()
+    assert out == "resolving a...\na==1: adding...\n"
+
+
 def test_pkg_already_present(pretend_pip, tmp_path, capsys):
     pretend_pip.joinpath("a-1-py3-none-any.whl").touch()
 
