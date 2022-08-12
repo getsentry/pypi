@@ -144,7 +144,7 @@ def _brew_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
     orig = dict(os.environ)
     os.environ.update(
-        CFLAGS=" ".join(f"-I{path}" for path in _paths("include")),
+        CPPFLAGS=" ".join(f"-I{path}" for path in _paths("include")),
         LDFLAGS=" ".join(f"-L{path}" for path in _paths("lib")),
         PKG_CONFIG_PATH=":".join(_paths("lib", "pkgconfig")),
     )
@@ -448,8 +448,8 @@ def _prebuild(
                 sep=os.pathsep,
                 env=env,
             ),
-            CFLAGS=_join_env(
-                name="CFLAGS",
+            CPPFLAGS=_join_env(
+                name="CPPFLAGS",
                 value=f"-I{_prefix_path('include')}",
                 sep=" ",
                 env=env,
