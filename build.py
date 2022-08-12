@@ -37,7 +37,7 @@ BINARY_EXTS = frozenset(
     (".c", ".cc", ".cpp", ".cxx", ".pxd", ".pxi", ".pyx", ".go", ".rs")
 )
 
-DATA_SCRIPTS = re.compile(r"^[^/]+.data/scripts/[^/]+$")
+DATA_SCRIPTS = re.compile(r"^[^/]+.data/scripts/[^/]+(?<!\.py)$")
 
 
 def _supported_tags(version: tuple[int, int]) -> frozenset[Tag]:

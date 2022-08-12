@@ -19,6 +19,19 @@ from build import Package
 from build import Wheel
 
 
+@pytest.mark.parametrize(
+    ("s", "matched"),
+    (
+        ("a-1.data/scripts/uwsgi", True),
+        ("a-1.data/scripts/run_thing.py", False),
+        ("a-1.data/purelib/unrelated", False),
+        ("scripts/unrelated", False),
+    ),
+)
+def test_data_scripts_re(s, matched):
+    assert bool(build.DATA_SCRIPTS.fullmatch(s)) is matched
+
+
 @pytest.mark.parametrize("ext", sorted(build.BINARY_EXTS))
 def test_all_binary_exts_start_with_dot(ext):
     assert ext.startswith(".")
