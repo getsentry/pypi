@@ -69,10 +69,7 @@ def _top_imports(whl: str) -> list[str]:
             for name in zipf.namelist()
             if DIST_INFO_RE.match(name)
         }
-        if "top_level.txt" in dist_info_names:
-            with zipf.open(dist_info_names["top_level.txt"]) as f:
-                return f.read().decode().splitlines()
-        elif "RECORD" in dist_info_names:
+        if "RECORD" in dist_info_names:
             with zipf.open(dist_info_names["RECORD"]) as f:
                 pkgs = {}
                 for line_b in f:
@@ -83,7 +80,7 @@ def _top_imports(whl: str) -> list[str]:
                         pkgs[fname.split(".")[0]] = 1
                 return list(pkgs)
         else:
-            raise NotImplementedError("need top_level.txt or RECORD")
+            raise NotImplementedError("need RECORD")
 
 
 def _validate(
