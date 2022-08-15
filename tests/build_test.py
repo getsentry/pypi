@@ -11,6 +11,7 @@ import zipfile
 from unittest import mock
 
 import pytest
+from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.version import Version
 
@@ -58,6 +59,7 @@ def test_package_default():
         apt_requires=(),
         brew_requires=(),
         custom_prebuild=(),
+        python_versions=SpecifierSet(),
     )
 
 
@@ -82,6 +84,7 @@ def test_package_parses_split_values():
         apt_requires=("pkg-config", "libxslt1-dev"),
         brew_requires=("pkg-config", "libxml"),
         custom_prebuild=("prebuild/crc32c", "deadbeef"),
+        python_versions=SpecifierSet(),
     )
 
 

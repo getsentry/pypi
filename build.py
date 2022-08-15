@@ -24,6 +24,7 @@ from typing import Mapping
 from typing import MutableMapping
 from typing import NamedTuple
 
+from packaging.specifiers import SpecifierSet
 from packaging.tags import compatible_tags
 from packaging.tags import cpython_tags
 from packaging.tags import platform_tags
@@ -56,6 +57,10 @@ class Python(NamedTuple):
     tags: frozenset[Tag]
 
     @property
+    def version_string(self) -> str:
+        return "{}.{}".format(*self.version)
+
+    @property
     def exe(self) -> str:
         return "python{}.{}".format(*self.version)
 
@@ -70,6 +75,7 @@ class Package(NamedTuple):
     apt_requires: tuple[str, ...]
     brew_requires: tuple[str, ...]
     custom_prebuild: tuple[str, ...]
+    python_versions: SpecifierSet
 
     def satisfied_by(
         self,
@@ -91,6 +97,7 @@ class Package(NamedTuple):
         apt_requires = tuple(dct.pop("apt_requires", "").split())
         brew_requires = tuple(dct.pop("brew_requires", "").split())
         custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
+        python_versions = dct.pop("python_versions", "")
         # ignore validate-only settings
         for setting in ("validate_extras", "validate_incorrect_missing_deps"):
             dct.pop(setting, None)
@@ -103,6 +110,7 @@ class Package(NamedTuple):
             apt_requires=apt_requires,
             brew_requires=brew_requires,
             custom_prebuild=custom_prebuild,
+            python_versions=SpecifierSet(python_versions),
         )
 
 
@@ -610,6 +618,8 @@ def main() -> int:
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]
     for package, python in itertools.product(all_packages, pythons):
         if package.satisfied_by(internal_wheels, python.tags):
+            continue
+        elif python.version_string not in package.python_versions:
             continue
 
         print(f"=== {package.name}=={package.version}@{python.version}")
