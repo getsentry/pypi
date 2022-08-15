@@ -94,7 +94,11 @@ class Package(NamedTuple):
         custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
         python_versions = dct.pop("python_versions", "")
         # ignore validate-only settings
-        for setting in ("validate_extras", "validate_incorrect_missing_deps"):
+        for setting in (
+            "validate_extras",
+            "validate_incorrect_missing_deps",
+            "validate_skip_imports",
+        ):
             dct.pop(setting, None)
         if dct:
             raise ValueError(f"unexpected attrs for {key}: {sorted(dct)}")

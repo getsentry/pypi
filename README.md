@@ -101,3 +101,13 @@ one example is `dictpath` which depends on `six` but doesn't list it:
 [dictpath==0.1.3]
 validate_incorrect_missing_deps = six
 ```
+
+### validate_skip_modules
+
+this should usually not be used but sometimes you need to skip importing some
+top-level modules due to side-effects or weird runtime requirements
+
+```ini
+[pyuwsgi==2.0.20]
+validate_skip_imports = uwsgidecorators
+```

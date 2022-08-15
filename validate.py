@@ -22,6 +22,7 @@ DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
 class Info(NamedTuple):
     validate_extras: str | None
     validate_incorrect_missing_deps: tuple[str, ...]
+    validate_skip_imports: tuple[str, ...]
 
     @classmethod
     def from_dct(cls, dct: Mapping[str, str]) -> Info:
@@ -30,6 +31,7 @@ class Info(NamedTuple):
             validate_incorrect_missing_deps=tuple(
                 dct.get("validate_incorrect_missing_deps", "").split()
             ),
+            validate_skip_imports=tuple(dct.get("validate_skip_imports", "").split()),
         )
 
 
@@ -135,7 +137,8 @@ def _validate(
 
         print("=> importing")
         for s in _top_imports(filename):
-            subprocess.check_call((py, "-c", f"__import__({s!r})"))
+            if s not in info.validate_skip_imports:
+                subprocess.check_call((py, "-c", f"__import__({s!r})"))
 
 
 def main() -> int:
