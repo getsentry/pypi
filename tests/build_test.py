@@ -16,7 +16,6 @@ from packaging.version import Version
 
 import build
 from build import Package
-from build import Wheel
 
 
 @pytest.mark.parametrize(
@@ -104,8 +103,9 @@ LINUX_3_8_SUPPORTED_TAGS = frozenset(
 )
 def test_package_satisfied_by_matches(filename):
     package = Package.make("my-pkg==1.2.3", {})
-    wheel = Wheel(filename)
-    assert package.satisfied_by((wheel,), LINUX_3_8_SUPPORTED_TAGS) is wheel
+    wheels: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
+    build._add_wheel(wheels, filename)
+    assert package.satisfied_by(wheels, LINUX_3_8_SUPPORTED_TAGS) is True
 
 
 @pytest.mark.parametrize(
@@ -120,25 +120,28 @@ def test_package_satisfied_by_matches(filename):
 )
 def test_package_satisfied_by_does_not_match(filename):
     package = Package.make("my-pkg==1.2.3", {})
-    wheels = (Wheel(filename),)
-    assert package.satisfied_by(wheels, LINUX_3_8_SUPPORTED_TAGS) is None
+    wheels: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
+    build._add_wheel(wheels, filename)
+    assert package.satisfied_by(wheels, LINUX_3_8_SUPPORTED_TAGS) is False
 
 
 def test_get_internal_wheels():
     contents = b"""\
-{"filename": "detect_test_pollution-1.0.0-py2.py3-none-any.whl"}
-{"filename": "detect_test_pollution-1.1.0-py2.py3-none-any.whl"}
-{"filename": "detect_test_pollution-1.1.1-py2.py3-none-any.whl"}
+{"filename": "detect_test_pollution-1.0.0-py3-none-any.whl"}
+{"filename": "detect_test_pollution-1.1.0-py3-none-any.whl"}
+{"filename": "detect_test_pollution-1.1.1-py3-none-any.whl"}
 """
     bio = io.BytesIO(contents)
     with mock.patch.object(urllib.request, "urlopen", return_value=bio):
         ret = build._internal_wheels("https://example.com")
 
-    assert ret == (
-        Wheel(filename="detect_test_pollution-1.0.0-py2.py3-none-any.whl"),
-        Wheel(filename="detect_test_pollution-1.1.0-py2.py3-none-any.whl"),
-        Wheel(filename="detect_test_pollution-1.1.1-py2.py3-none-any.whl"),
-    )
+    assert ret == {
+        "detect-test-pollution": [
+            (Version("1.0.0"), frozenset((Tag("py3", "none", "any"),))),
+            (Version("1.1.0"), frozenset((Tag("py3", "none", "any"),))),
+            (Version("1.1.1"), frozenset((Tag("py3", "none", "any"),))),
+        ],
+    }
 
 
 def test_brew_paths():
