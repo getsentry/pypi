@@ -61,6 +61,17 @@ the script should set up whatever tools are necessary inside only that directory
 custom_prebuild = prebuild/crc32c 1.1.2
 ```
 
+### python_versions
+
+some packages are only intended for particular python versions (or don't
+otherwise build cleanly).  the builds can be filtered using `python_versions`
+(though usually you should try and upgrade the relevant package).
+
+```ini
+[backports-zoneinfo==0.2.1]
+python_versions = <3.9
+```
+
 ## validation
 
 after building the packages will be checked that they can install and import
