@@ -66,15 +66,6 @@ def test_pythons_to_check_specific_cpython_tag():
     assert ret == ("python3.8",)
 
 
-def test_top_imports_top_level_txt(tmp_path):
-    whl = tmp_path.joinpath("cffi.whl")
-    with zipfile.ZipFile(whl, "w") as zipf:
-        with zipf.open("cffi-1.15.1.dist-info/top_level.txt", "w") as f:
-            f.write(b"_cffi_backend\ncffi\n")
-
-    assert validate._top_imports(str(whl)) == ["_cffi_backend", "cffi"]
-
-
 def test_top_imports_record(tmp_path):
     whl = tmp_path.joinpath("distlib.whl")
     with zipfile.ZipFile(whl, "w") as zipf:
