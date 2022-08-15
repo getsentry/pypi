@@ -65,10 +65,6 @@ class Python(NamedTuple):
         return "python{}.{}".format(*self.version)
 
 
-class Wheel(NamedTuple):
-    filename: str
-
-
 class Package(NamedTuple):
     name: str
     version: Version
@@ -79,15 +75,14 @@ class Package(NamedTuple):
 
     def satisfied_by(
         self,
-        wheels: tuple[Wheel, ...],
+        wheels: dict[str, list[tuple[Version, frozenset[Tag]]]],
         tags: frozenset[Tag],
-    ) -> Wheel | None:
-        for wheel in wheels:
-            pkg, version, _, wheel_tags = parse_wheel_filename(wheel.filename)
-            if pkg == self.name and version == self.version and wheel_tags & tags:
-                return wheel
+    ) -> bool:
+        for version, wheel_tags in wheels.get(self.name, ()):
+            if version == self.version and wheel_tags & tags:
+                return True
         else:
-            return None
+            return False
 
     @classmethod
     def make(cls, key: str, val: Mapping[str, str]) -> Package:
@@ -114,10 +109,18 @@ class Package(NamedTuple):
         )
 
 
-def _internal_wheels(index: str) -> tuple[Wheel, ...]:
+def _add_wheel(d: dict[str, list[tuple[Version, frozenset[Tag]]]], f: str) -> None:
+    name, version, _, tags = parse_wheel_filename(f)
+    d.setdefault(name, []).append((version, tags))
+
+
+def _internal_wheels(index: str) -> dict[str, list[tuple[Version, frozenset[Tag]]]]:
     # dumb-pypi specific `packages.json` endpoint
     resp = urllib.request.urlopen(urllib.parse.urljoin(index, "packages.json"))
-    return tuple(Wheel(json.loads(line)["filename"]) for line in resp)
+    ret: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
+    for line in resp:
+        _add_wheel(ret, json.loads(line)["filename"])
+    return ret
 
 
 def _darwin_setup_deps(packages_ini: str, dest: str, pypi_url: str) -> None:
@@ -378,7 +381,7 @@ def _check_arch(filename: str) -> str | None:
     return None
 
 
-def _download(package: Package, python: Python, dest: str) -> Wheel | None:
+def _download(package: Package, python: Python, dest: str) -> str | None:
     with tempfile.TemporaryDirectory() as tmpdir:
         pip = (python.exe, "-mpip")
 
@@ -410,7 +413,7 @@ def _download(package: Package, python: Python, dest: str) -> Wheel | None:
                     continue
                 else:
                     shutil.copy(filename_full, dest)
-                    return Wheel(filename)
+                    return filename
         else:
             return None
 
@@ -538,7 +541,7 @@ def _produced_binary(wheel: str) -> bool:
             return False
 
 
-def _build(package: Package, python: Python, dest: str, index_url: str) -> Wheel:
+def _build(package: Package, python: Python, dest: str, index_url: str) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         pip = (python.exe, "-mpip")
 
@@ -584,13 +587,13 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> Wheel
 
             if filename.endswith("-any.whl"):  # purelib
                 shutil.copy(filename_full, dest)
-                return Wheel(filename)
+                return filename
             else:
                 repair_dir = os.path.join(tmpdir, "repair")
                 plat.repair_wheel(filename_full, repair_dir)
                 (filename,) = os.listdir(repair_dir)
                 shutil.copy(os.path.join(repair_dir, filename), dest)
-                return Wheel(filename)
+                return filename
 
 
 def main() -> int:
@@ -613,7 +616,7 @@ def main() -> int:
     pythons = [Python(version, _supported_tags(version)) for version in PYTHONS]
 
     internal_wheels = _internal_wheels(args.pypi_url)
-    built: list[Wheel] = []
+    built: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
 
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]
     for package, python in itertools.product(all_packages, pythons):
@@ -630,12 +633,12 @@ def main() -> int:
             print("-> building...")
             downloaded_wheel = _download(package, python, args.dest)
             if downloaded_wheel is not None:
-                built.append(downloaded_wheel)
-                print(f"-> downloaded! {downloaded_wheel.filename}")
+                _add_wheel(built, downloaded_wheel)
+                print(f"-> downloaded! {downloaded_wheel}")
             else:
                 built_wheel = _build(package, python, args.dest, index_url)
-                built.append(built_wheel)
-                print(f"-> built! {built_wheel.filename}")
+                _add_wheel(built, built_wheel)
+                print(f"-> built! {built_wheel}")
 
     return 0
 
