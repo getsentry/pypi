@@ -4,9 +4,8 @@ macos_task:
     image: ghcr.io/cirruslabs/macos-monterey-base:latest
   env:
     PATH: ${CIRRUS_WORKING_DIR}/venv/bin:${CIRRUS_WORKING_DIR}/pythons/cp38-cp38/bin:${CIRRUS_WORKING_DIR}/pythons/cp39-cp39/bin:${CIRRUS_WORKING_DIR}/pythons/cp310-cp310/bin:${PATH}
-  setup_script:
-  - python3 -u docker/install-pythons --dest pythons
-  - python3 -um venv venv && pip install -r docker/requirements.txt
+  setup_pythons_script: python3 -u docker/install-pythons --dest pythons
+  setup_venv_script: python3 -um venv venv && pip install -r docker/requirements.txt
   script:
   - python3 -um build --pypi-url https://pypi.devinfra.sentry.io
   - python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
