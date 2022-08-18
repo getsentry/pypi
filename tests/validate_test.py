@@ -13,6 +13,7 @@ def test_info_nothing_supplied():
     expected = validate.Info(
         validate_extras=None,
         validate_incorrect_missing_deps=(),
+        validate_skip_imports=(),
     )
     assert info == expected
 
@@ -22,11 +23,13 @@ def test_info_all_supplied():
         {
             "validate_extras": "d",
             "validate_incorrect_missing_deps": "six",
+            "validate_skip_imports": "uwsgidecorators",
         }
     )
     expected = validate.Info(
         validate_extras="d",
         validate_incorrect_missing_deps=("six",),
+        validate_skip_imports=("uwsgidecorators",),
     )
     assert info == expected
 
