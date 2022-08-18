@@ -362,7 +362,9 @@ def _check_arch(filename: str) -> str | None:
         with zipfile.ZipFile(filename) as zipf:
             arch_files = []
             for name in zipf.namelist():
-                if name.endswith((".so", ".dylib")) or ".so." in name:
+                if "/tests/" in name:
+                    continue
+                elif name.endswith((".so", ".dylib")) or ".so." in name:
                     arch_files.append(name)
                 elif DATA_SCRIPTS.match(name):
                     with zipf.open(name) as f:
