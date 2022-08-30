@@ -185,7 +185,10 @@ def _darwin_install(package: Package) -> Generator[None, None, None]:
 
 
 def _darwin_get_archs(file: str) -> set[str]:
-    out = subprocess.check_output(("otool", "-hv", "-arch", "all", file))
+    cmd = ("otool", "-hv", "-arch", "all", file)
+    # `otool` crashes when presented with this environment variable
+    env = {k: v for k, v in os.environ.items() if k != "SYSTEM_VERSION_COMPAT"}
+    out = subprocess.check_output(cmd, env=env)
     lines = out.decode().splitlines()
     if len(lines) % 4 != 0:
         raise AssertionError(f"unexpected otool output:\n{lines}")
