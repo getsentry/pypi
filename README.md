@@ -30,6 +30,8 @@ most packages won't need special build instructions and the section contents can
 [simplejson==3.17.6]
 ```
 
+**Anyone in the [Engineering team](https://github.com/orgs/getsentry/teams/engineering) can approve Pull Requests**.
+
 ### apt_requires / brew_requires
 
 some packages require special system-level build dependencies, these can be configured using
