@@ -1,4 +1,4 @@
-FROM python:3.8.13-slim-buster
+FROM python:3.8.14-slim-buster
 RUN : \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install \
