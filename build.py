@@ -522,7 +522,7 @@ def _likely_binary(sdist: str) -> str | None:
 
     ret = set()
     for name in names:
-        if "/test/" in name or "/tests/" in name:
+        if "/test/" in name or "/tests/" in name or "/examples/" in name:
             continue
 
         _, ext = os.path.splitext(name)
