@@ -71,6 +71,7 @@ class Package(NamedTuple):
     apt_requires: tuple[str, ...]
     brew_requires: tuple[str, ...]
     custom_prebuild: tuple[str, ...]
+    likely_binary_ignore: tuple[str, ...]
     python_versions: SpecifierSet
 
     def satisfied_by(
@@ -92,6 +93,7 @@ class Package(NamedTuple):
         apt_requires = tuple(dct.pop("apt_requires", "").split())
         brew_requires = tuple(dct.pop("brew_requires", "").split())
         custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
+        likely_binary_ignore = tuple(dct.pop("likely_binary_ignore", "").split())
         python_versions = dct.pop("python_versions", "")
         # ignore validate-only settings
         for setting in (
@@ -109,6 +111,7 @@ class Package(NamedTuple):
             apt_requires=apt_requires,
             brew_requires=brew_requires,
             custom_prebuild=custom_prebuild,
+            likely_binary_ignore=likely_binary_ignore,
             python_versions=SpecifierSet(python_versions),
         )
 
@@ -497,7 +500,7 @@ def _prebuild(
             env.update(before)
 
 
-def _likely_binary(sdist: str) -> str | None:
+def _likely_binary(package: Package, sdist: str) -> str | None:
     if sdist.endswith(".zip"):
         with zipfile.ZipFile(sdist) as zipf:
             names = zipf.namelist()
@@ -523,6 +526,9 @@ def _likely_binary(sdist: str) -> str | None:
     ret = set()
     for name in names:
         if "/test/" in name or "/tests/" in name:
+            continue
+
+        if any(substr in name for substr in package.likely_binary_ignore):
             continue
 
         _, ext = os.path.splitext(name)
@@ -584,7 +590,7 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> str:
             (filename,) = os.listdir(build_dir)
             filename_full = os.path.join(build_dir, filename)
 
-            likely_binary_reason = _likely_binary(sdist)
+            likely_binary_reason = _likely_binary(package, sdist)
             if likely_binary_reason and not _produced_binary(filename_full):
                 raise SystemExit(
                     f"{package.name}=={package.version} expected binary as "

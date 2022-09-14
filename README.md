@@ -63,6 +63,20 @@ the script should set up whatever tools are necessary inside only that directory
 custom_prebuild = prebuild/crc32c 1.1.2
 ```
 
+### likely_binary_ignore
+
+when the sdist has source files of a compiled language (see BINARY_EXTS),
+we would expect compiled things (e.g. binary executables, shared objects)
+in the wheel. sometimes this isn't the case, and you can ignore those
+source files:
+
+
+```ini
+[salt-ssh==3005]
+likely_binary_ignore =
+    pkg/smartos/esky/sodium_grabber.c
+```
+
 ### python_versions
 
 some packages are only intended for particular python versions (or don't
