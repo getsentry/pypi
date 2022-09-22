@@ -6,6 +6,14 @@ sentry internal pypi
 this repository contains the tools to import and/or build packages from public pypi for the
 platforms and achitectures required for sentry development.
 
+## Install
+
+install dependencies before running any of the following scripts
+
+```bash
+make install-deps
+```
+
 ## adding packages
 
 packages are configured in the `packages.ini` file.
