@@ -11,7 +11,9 @@ platforms and achitectures required for sentry development.
 install dependencies before running any of the following scripts
 
 ```bash
-make install-deps
+brew install tox
+tox --devenv venv
+. venv/bin/activate
 ```
 
 ## adding packages
