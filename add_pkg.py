@@ -8,7 +8,15 @@ import sys
 import tempfile
 from typing import Sequence
 
-from packaging.utils import parse_wheel_filename
+try:
+    from packaging.utils import parse_wheel_filename
+except ImportError:
+    raise SystemExit("""Dependencies not found. To continue, please run:
+
+    brew install tox
+    tox --devenv venv
+    . venv/bin/activate
+""")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
