@@ -578,8 +578,14 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> str:
                     "--no-deps",
                     sdist,
                 ),
-                # disable bulky "universal2" building
-                env={**os.environ, "ARCHFLAGS": ""},
+                env={
+                    **os.environ,
+                    # disable bulky "universal2" building
+                    "ARCHFLAGS": "",
+                    # https://github.com/pypa/setuptools/issues/3657
+                    # disable buggy setuptools bundled distutils
+                    "SETUPTOOLS_USE_DISTUTILS": "stdlib",
+                },
             )
             (filename,) = os.listdir(build_dir)
             filename_full = os.path.join(build_dir, filename)
