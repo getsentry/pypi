@@ -32,7 +32,7 @@ from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
-PYTHONS = ((3, 8), (3, 9), (3, 10))
+PYTHONS = ((3, 8), (3, 9), (3, 10), (3, 11))
 
 BINARY_EXTS = frozenset(
     (".c", ".cc", ".cpp", ".cxx", ".pxd", ".pxi", ".pyx", ".go", ".rs")
