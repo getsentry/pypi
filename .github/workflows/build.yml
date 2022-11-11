@@ -73,5 +73,4 @@ jobs:
     - uses: google-github-actions/auth@v0
       with:
         credentials_json: ${{ secrets.PYPI_DEVINFRA_SENTRY_IO }}
-    - uses: google-github-actions/setup-gcloud@v0
     - run: python3 -uS bin/upload-artifacts
