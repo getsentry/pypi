@@ -13,24 +13,24 @@ import tempfile
 
 # gsutil cp gs://sentry-dev-infra-assets/prebuilt-pythons/python-{3.8.15+0,3.9.15+0,3.10.8+0,3.11.0+0}.sha256sums -
 CHECKSUMS = """\
-1f2faa5c2dbc0960206869661e388a06a23b6aabd8844e589a2d6750ce18eca9  python-3.8.15+0-macosx_12_0_arm64.tgz
-c04ee433f3848693adbf37aa0632cf2da6e2f1a636bb4c3b5a10b0380e15a24a  python-3.8.15+0-macosx_12_0_x86_64.tgz
-6a1ebda2769097ecf3288ad98c4d2b4be3218661428f0addd4e9f716a2a62e9c  python-3.8.15+0-manylinux_2_28_aarch64.tgz
-fa31c4a08c4df4a932934998d1e2b982249d7ae5261eb529fb279f9df32dce4f  python-3.8.15+0-manylinux_2_28_x86_64.tgz
-08008bd0b44afbfb3bf6c15007b391a53fe46336b9502d7c715331bd83afbced  python-3.9.15+0-macosx_12_0_arm64.tgz
-586fd9e52d55d4736a823b4f917921b277290a1dfb37fd7d9725bd45efd17840  python-3.9.15+0-macosx_12_0_x86_64.tgz
-26f6d850ab753bc016a9d3e658b5e63dd2fca3bbd90d6a7dd8bbe2f3f8e8cf88  python-3.9.15+0-manylinux_2_28_aarch64.tgz
-f66a3f23e555b59dcc243ea7647c3f45a12c5c15f97241edc8c1442149afe32f  python-3.9.15+0-manylinux_2_28_x86_64.tgz
-34cf84f4d75ee6e4cd9a21ace57125e3202f9591bf1792170c314cf16d120d8c  python-3.10.8+0-macosx_12_0_arm64.tgz
-772b54568ab5b18749032f94e056db5ff595d02a3c839da464fb932ba3184f65  python-3.10.8+0-macosx_12_0_x86_64.tgz
-a9ad210a75c7df3fcb0465996a11275436c1e5db332ca4b42123cef86ed4b89d  python-3.10.8+0-manylinux_2_28_aarch64.tgz
-200b4506b7540826249f10177f7eada556a7df33c604aa8638e5b39d6a119dd9  python-3.10.8+0-manylinux_2_28_x86_64.tgz
-c08d4f5f5ad3c2b69e5a41859f3271719112d6863acf2b4f7d9dee1963ff1456  python-3.11.0+0-macosx_12_0_arm64.tgz
-9e2d7f568c450fdaa105c1f34172a19c4b2ff85a8cb14129aa57522d78403e06  python-3.11.0+0-macosx_12_0_x86_64.tgz
-f06b69135a658d5f8f3aff9280286dedc890eafd90d9ae50706254cee8d11d90  python-3.11.0+0-manylinux_2_28_aarch64.tgz
-d8f3d369fa7a02d3452ecb226a0423be6ee92e929983e5b3a5925fd75b933522  python-3.11.0+0-manylinux_2_28_x86_64.tgz
+6e41eca73ba5565b31aebfd168cc2204c7d055cbcfd13be32c6591d7791a7aca  python-3.8.16+0-macosx_12_0_arm64.tgz
+a429fac0c0559b93f907dfa7cd370b1b69a84bbe5bec79fab69c312ff56564ab  python-3.8.16+0-macosx_12_0_x86_64.tgz
+eabf3e7d1543a61d5de1ebb87f860bae988e044fbd69c76991d1c0d356f6eec1  python-3.8.16+0-manylinux_2_28_aarch64.tgz
+a66da18495a40464969e165592729ec36954c3a67971561d6d595406ff7acd2d  python-3.8.16+0-manylinux_2_28_x86_64.tgz
+24e0e6a5f0441ec6a037d55930b201c46eefb4559945ded8f670211680c03fe9  python-3.9.16+0-macosx_12_0_arm64.tgz
+e08d2874414df8dd1a44a507339884266de5193dd9e637375c7c16ddfc3296e7  python-3.9.16+0-macosx_12_0_x86_64.tgz
+acfa20f500332e6f3c4d900db611ba069b52965973c77b03a8af5c774cf51730  python-3.9.16+0-manylinux_2_28_aarch64.tgz
+0a50b871ab5ff2e945a461f00589089c944ffee7f049c8c06be7a15e86745fc1  python-3.9.16+0-manylinux_2_28_x86_64.tgz
+503f2b82d52647c322af626052995cded0a23899cca94600aa80eb193e4b926a  python-3.10.9+0-macosx_12_0_arm64.tgz
+30c919dd9be7767488d7953946c6dd39d058571b85c280c7e33df2fb771149cc  python-3.10.9+0-macosx_12_0_x86_64.tgz
+2ca822fa3c09e515dcbdcf7c8f4b091cc47b5c935b44083f69fd572580f9ceca  python-3.10.9+0-manylinux_2_28_aarch64.tgz
+639fb9945dc8bccc821aff98595f877e0a50e273a1b352886c31908ce95e1098  python-3.10.9+0-manylinux_2_28_x86_64.tgz
+ffdf9ade5d7023921a175294248003ac95f4c4ee6babb5c3d7f9f7650146a96e  python-3.11.1+0-macosx_12_0_arm64.tgz
+951f381c4e286717b89a03bd8e217cb07f745727f101de21d4a048a08139ae3e  python-3.11.1+0-macosx_12_0_x86_64.tgz
+42fba60f08fffc41e2a2eed0763eb8df57c7e79a56809d883c73efdc3dbba0e2  python-3.11.1+0-manylinux_2_28_aarch64.tgz
+be999ab895e67ebf7b199108090c0c09a0fad6cd9f1034dd9bd15ba61f8ef05f  python-3.11.1+0-manylinux_2_28_x86_64.tgz
 """
-VERSIONS = ("3.8.15+0", "3.9.15+0", "3.10.8+0", "3.11.0+0")
+VERSIONS = ("3.8.16+0", "3.9.16+0", "3.10.9+0", "3.11.1+0")
 PLAT_TAG = {"linux": "manylinux", "darwin": "macosx"}
 PLAT_RE = re.compile(f"{PLAT_TAG[sys.platform]}_.+{platform.machine()}$")
 
