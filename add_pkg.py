@@ -13,11 +13,11 @@ from packaging.utils import parse_wheel_filename
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("dep")
+    parser.add_argument("deps", nargs="+")
     parser.add_argument("--packages-ini", default="packages.ini")
     args = parser.parse_args(argv)
 
-    print(f"resolving {args.dep}...")
+    print(f"resolving {' '.join(args.deps)}...")
     with tempfile.TemporaryDirectory() as tmpdir:
         subprocess.check_call(
             (
@@ -27,7 +27,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "--quiet",
                 "--no-cache-dir",
                 f"--wheel-dir={tmpdir}",
-                args.dep,
+                *args.deps,
             )
         )
 

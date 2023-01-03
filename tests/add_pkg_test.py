@@ -34,6 +34,21 @@ def test_new_pkg(pretend_pip, tmp_path, capsys):
     assert out == "resolving a...\na==1: adding...\n"
 
 
+def test_new_pkg_multiple_packages(pretend_pip, tmp_path, capsys):
+    pretend_pip.joinpath("a-1-py3-none-any.whl").touch()
+    pretend_pip.joinpath("c-2-py3-none-any.whl").touch()
+
+    packages_ini = tmp_path.joinpath("packages.ini")
+    packages_ini.write_text("[b==1]\n")
+
+    assert add_pkg.main(("a", "c", f"--packages-ini={packages_ini}")) == 0
+
+    assert packages_ini.read_text() == "[a==1]\n\n[b==1]\n\n[c==2]\n"
+
+    out, _ = capsys.readouterr()
+    assert out == "resolving a c...\na==1: adding...\nc==2: adding...\n"
+
+
 def test_pkg_already_present(pretend_pip, tmp_path, capsys):
     pretend_pip.joinpath("a-1-py3-none-any.whl").touch()
 
