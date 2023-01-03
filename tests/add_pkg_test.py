@@ -80,3 +80,22 @@ def test_pkg_copied_from_previous_version(pretend_pip, tmp_path, capsys):
 
     out, _ = capsys.readouterr()
     assert out == "resolving a...\na==2: adding...\n"
+
+
+def test_skip_resolve(tmp_path, capsys):
+    packages_ini = tmp_path.joinpath("packages.ini")
+    packages_ini.write_text("[a==1]\n")
+
+    # an attempt to use `pip` should raise!
+    with mock.patch.object(subprocess, "check_call", side_effect=AssertionError):
+        ret = add_pkg.main(("a==2", "--skip-resolve", f"--packages-ini={packages_ini}"))
+        assert ret == 0
+
+    assert packages_ini.read_text() == "[a==1]\n[a==2]\n"
+
+
+def test_error_with_skip_resolve_an_not_pinned(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        add_pkg.main(("wat", "--skip-resolve"))
+    (msg,) = excinfo.value.args
+    assert msg == "dep must be name==version: 'wat'"
