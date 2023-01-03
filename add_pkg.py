@@ -13,28 +13,41 @@ from packaging.utils import parse_wheel_filename
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("dep")
+    parser.add_argument("deps", nargs="+")
     parser.add_argument("--packages-ini", default="packages.ini")
+    parser.add_argument(
+        "--skip-resolve",
+        action="store_true",
+        help="skip resolving dependencies, all deps must be specified as k==v",
+    )
     args = parser.parse_args(argv)
 
-    print(f"resolving {args.dep}...")
-    with tempfile.TemporaryDirectory() as tmpdir:
-        subprocess.check_call(
-            (
-                sys.executable,
-                "-mpip",
-                "wheel",
-                "--quiet",
-                "--no-cache-dir",
-                f"--wheel-dir={tmpdir}",
-                args.dep,
-            )
-        )
-
+    if args.skip_resolve:
         deps = []
-        for filename in sorted(os.listdir(tmpdir)):
-            name, version, _, _ = parse_wheel_filename(filename)
-            deps.append((name, str(version)))
+        for dep in args.deps:
+            name, _, version = dep.partition("==")
+            if not version:
+                raise SystemExit(f"dep must be name==version: {dep!r}")
+            deps.append((name, version))
+    else:
+        print(f"resolving {' '.join(args.deps)}...")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            subprocess.check_call(
+                (
+                    sys.executable,
+                    "-mpip",
+                    "wheel",
+                    "--quiet",
+                    "--no-cache-dir",
+                    f"--wheel-dir={tmpdir}",
+                    *args.deps,
+                )
+            )
+
+            deps = []
+            for filename in sorted(os.listdir(tmpdir)):
+                name, version, _, _ = parse_wheel_filename(filename)
+                deps.append((name, str(version)))
 
     cfg = configparser.ConfigParser()
     assert cfg.read(args.packages_ini)
