@@ -10,7 +10,7 @@ jobs:
     - run: |
         set -x
         gh pr review --approve --repo "$GITHUB_REPOSITORY" "$PR"
-        gh pr merge --repo "$GITHUB_REPOSITORY" "$PR"
+        gh pr merge --auto --repo "$GITHUB_REPOSITORY" "$PR"
       env:
         PR: ${{ github.event.number }}
         GH_TOKEN: ${{ github.token }}
