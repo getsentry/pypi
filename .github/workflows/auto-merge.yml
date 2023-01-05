@@ -13,3 +13,4 @@ jobs:
         gh pr merge --repo "$GITHUB_REPOSITORY" "$PR"
       env:
         PR: ${{ github.event.number }}
+        GH_TOKEN: ${{ github.token }}
