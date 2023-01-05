@@ -1,0 +1,15 @@
+name: auto merge
+on:
+  pull_request_target:
+
+jobs:
+  auto-merge:
+    if: github.actor == 'getsentry-bot' && startsWith(github.head_ref, 'craft-')
+    runs-on: ubuntu-latest
+    steps:
+    - run: |
+        set -x
+        gh pr review --approve --repo "$GITHUB_REPOSITORY" "$PR"
+        gh pr merge --repo "$GITHUB_REPOSITORY" "$PR"
+      env:
+        PR: ${{ github.event.number }}
