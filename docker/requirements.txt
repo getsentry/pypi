@@ -5,7 +5,7 @@
 #    pip-compile --allow-unsafe --no-annotate
 #
 auditwheel==5.1.2
-delocate==0.10.2
+delocate==0.10.4
 distlib==0.3.5
 dumb-pypi==1.13.0
 filelock==3.7.1
