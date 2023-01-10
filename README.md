@@ -6,6 +6,14 @@ sentry internal pypi
 this repository contains the tools to import and/or build packages from public pypi for the
 platforms and achitectures required for sentry development.
 
+## setup
+
+```
+python3 -m venv .venv
+source .venv
+pip install packaging wheel
+```
+
 ## adding packages
 
 packages are configured in the `packages.ini` file.
