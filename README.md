@@ -9,9 +9,11 @@ platforms and achitectures required for sentry development.
 ## setup
 
 ```
-python3 -m venv .venv
-source .venv
-pip install packaging wheel
+# install tox (if not already installed)
+brew install tox
+
+# create your development venv
+tox devenv venv
 ```
 
 ## adding packages
@@ -21,6 +23,7 @@ packages are configured in the `packages.ini` file.
 the easiest way to add a package and its dependencies is to use:
 
 ```bash
+source venv/bin/activate
 python3 -m add_pkg PKGNAME
 ```
 
