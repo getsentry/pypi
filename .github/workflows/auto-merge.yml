@@ -9,8 +9,9 @@ jobs:
     steps:
     - run: |
         set -x
-        gh pr review --approve --repo "$GITHUB_REPOSITORY" "$PR"
-        gh pr merge --auto --merge --repo "$GITHUB_REPOSITORY" "$PR"
+        GH_TOKEN=$GHA_TOKEN gh pr review --approve --repo "$GITHUB_REPOSITORY" "$PR"
+        GH_TOKEN=$BOT_TOKEN gh pr merge --auto --merge --repo "$GITHUB_REPOSITORY" "$PR"
       env:
         PR: ${{ github.event.number }}
-        GH_TOKEN: ${{ github.token }}
+        GHA_TOKEN: ${{ github.token }}
+        BOT_TOKEN: ${{ secrets.GH_RELEASE_PAT }}
