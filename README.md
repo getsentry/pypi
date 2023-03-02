@@ -16,6 +16,12 @@ the easiest way to add a package and its dependencies is to use:
 python3 -m add_pkg PKGNAME
 ```
 
+You will need to install the right dependencies first though:
+
+```bash
+pip install -r docker/requirements.txt
+```
+
 each section is an individual package and has some additional instructions which helps for
 building.
 
