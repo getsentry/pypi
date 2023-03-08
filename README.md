@@ -30,7 +30,7 @@ most packages won't need special build instructions and the section contents can
 [simplejson==3.17.6]
 ```
 
-**Anyone in the [Engineering team](https://github.com/orgs/getsentry/teams/engineering) can approve Pull Requests**.
+**Anyone in the [Engineering team](https://github.com/orgs/getsentry/teams/engineering) can approve Pull Requests**, but it's preferred to get somebody from your team with context to approve your PR.
 
 ### apt_requires / brew_requires
 
