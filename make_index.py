@@ -117,9 +117,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
 
-    # for now we don't utilize the json api
-    shutil.rmtree(os.path.join(args.dest, "pypi"), ignore_errors=True)
-
     return 0
 
 
