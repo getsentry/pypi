@@ -78,7 +78,12 @@ def main() -> int:
 
             py = os.path.join(dest, "bin", "python3")
             subprocess.check_call((py, "-mensurepip"))
-            subprocess.check_call((py, "-mpip", "install", "wheel==0.37.1"))
+            subprocess.check_call(
+                (
+                    *(py, "-mpip", "install"),
+                    *("pip==23.1.2", "setuptools==67.8.0", "wheel==0.40.0"),
+                )
+            )
             subprocess.check_call((py, "--version", "--version"))
 
     return 0
