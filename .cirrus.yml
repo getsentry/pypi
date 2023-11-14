@@ -1,7 +1,7 @@
 macos_task:
   name: macos-arm64
   macos_instance:
-    image: ghcr.io/cirruslabs/macos-monterey-base:latest
+    image: ghcr.io/cirruslabs/macos-ventura-base:latest
   env:
     PATH: ${CIRRUS_WORKING_DIR}/venv/bin:${CIRRUS_WORKING_DIR}/pythons/cp38-cp38/bin:${CIRRUS_WORKING_DIR}/pythons/cp39-cp39/bin:${CIRRUS_WORKING_DIR}/pythons/cp310-cp310/bin:${CIRRUS_WORKING_DIR}/pythons/cp311-cp311/bin:${PATH}
   setup_pythons_script: python3 -u docker/install-pythons --dest pythons
