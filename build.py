@@ -147,7 +147,7 @@ def _brew_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
     installed_before = _darwin_installed_packages()
 
     subprocess.check_call(
-        ("brew", "install", *packages),
+        ("brew", "install", *packages, "--overwrite"),
         env={**os.environ, "HOMEBREW_NO_AUTO_UPDATE": "1"},
     )
 
