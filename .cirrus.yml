@@ -8,6 +8,8 @@ macos_task:
   setup_venv_script:
     python3 -um venv venv && pip install -r docker/requirements.txt
   script:
+    - brew list
+    - brew install go@1.20
     - brew install go@1.20
   artifacts:
     path: dist/*
