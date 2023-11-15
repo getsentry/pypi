@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import hashlib
+import io
+import os.path
+import secrets
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.request
+
+URL = "https://github.com/lsh123/xmlsec/releases/download/xmlsec-1_2_38/xmlsec1-1.2.38.tar.gz"
+SHA256 = "9de8cf8d7d2e288a9cef205cc6cb93c926a67dadfaf44aaff76ed63c28ce9902"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("prefix")
+    args = parser.parse_args()
+
+    if sys.platform != "darwin":
+        print(f"skipping on platform: {sys.platform} (not darwin)")
+        return 0
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        resp = urllib.request.urlopen(URL)
+        bts = resp.read()
+        h = hashlib.sha256(bts).hexdigest()
+        if not secrets.compare_digest(h, SHA256):
+            raise SystemExit(f"checksum mismatch: {(SHA256, h)=}")
+
+        with tarfile.open(fileobj=io.BytesIO(bts)) as tarf:
+            tarf.extractall(tmpdir)
+
+        srcroot = os.path.join(tmpdir, "xmlsec1-1.2.38")
+        subprocess.check_call(
+            (
+                "./configure",
+                "--disable-dependency-tracking",
+                f"--prefix={args.prefix}",
+                "--disable-crypto-dl",
+                "--disable-apps-crypto-dl",
+                "--with-nss=no",
+                "--with-nspr=no",
+                "--enable-mscrypto=no",
+                "--enable-mscng=no",
+            ),
+            cwd=srcroot,
+        )
+        subprocess.check_call(("make", "install"), cwd=srcroot)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
