@@ -27,6 +27,7 @@ RUN : \
         uuid-dev \
         xz-utils \
         zlib1g-dev \
+        zstd \
     && rm -rf /var/lib/apt/lists/*
 
 # https://github.com/pypa/auditwheel/issues/229
