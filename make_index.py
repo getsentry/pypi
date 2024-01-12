@@ -14,8 +14,8 @@ import tempfile
 import urllib.parse
 import urllib.request
 import zipfile
+from collections.abc import Sequence
 from typing import Any
-from typing import Sequence
 
 
 @functools.lru_cache(maxsize=1)

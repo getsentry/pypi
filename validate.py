@@ -8,14 +8,14 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from typing import Mapping
+from collections.abc import Mapping
 from typing import NamedTuple
 
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
-PYTHONS = ((3, 8), (3, 9), (3, 10))
+PYTHONS = ((3, 9), (3, 10), (3, 11))
 DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
 
 

@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
-from typing import Sequence
+from collections.abc import Sequence
 
 from packaging.utils import parse_wheel_filename
 

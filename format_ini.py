@@ -5,7 +5,7 @@ import configparser
 import io
 import re
 import sys
-from typing import Sequence
+from collections.abc import Sequence
 
 from packaging.utils import canonicalize_name
 from packaging.version import Version

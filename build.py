@@ -17,11 +17,11 @@ import tempfile
 import urllib.parse
 import urllib.request
 import zipfile
+from collections.abc import Generator
+from collections.abc import Mapping
+from collections.abc import MutableMapping
 from typing import Callable
 from typing import ContextManager
-from typing import Generator
-from typing import Mapping
-from typing import MutableMapping
 from typing import NamedTuple
 
 from packaging.specifiers import SpecifierSet
@@ -32,7 +32,7 @@ from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
-PYTHONS = ((3, 8), (3, 9), (3, 10), (3, 11))
+PYTHONS = ((3, 9), (3, 10), (3, 11))
 
 BINARY_EXTS = frozenset(
     (".c", ".cc", ".cpp", ".cxx", ".pxd", ".pxi", ".pyx", ".go", ".rs")
