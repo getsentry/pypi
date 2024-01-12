@@ -6,7 +6,7 @@ import json
 import subprocess
 import sys
 import urllib.request
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -43,30 +43,30 @@ def test_pythons_to_check_no_pythons_raises_error():
 
 def test_pythons_to_check_py2_ignored():
     ret = validate._pythons_to_check(parse_tag("py2.py3-none-any"))
-    assert ret == ("python3.10", "python3.8", "python3.9")
+    assert ret == ("python3.10", "python3.11", "python3.9")
 
 
 def test_pythons_to_check_py3_gives_all():
     ret = validate._pythons_to_check(parse_tag("py3-none-any"))
-    assert ret == ("python3.10", "python3.8", "python3.9")
+    assert ret == ("python3.10", "python3.11", "python3.9")
 
 
 def test_pythons_to_check_abi3():
     tag = "cp37-abi3-manylinux1_x86_64"
     ret = validate._pythons_to_check(parse_tag(tag))
-    assert ret == ("python3.10", "python3.8", "python3.9")
+    assert ret == ("python3.10", "python3.11", "python3.9")
 
 
 def test_pythons_to_check_minimum_abi3():
     tag = "cp39-abi3-manylinux1_x86_64"
     ret = validate._pythons_to_check(parse_tag(tag))
-    assert ret == ("python3.10", "python3.9")
+    assert ret == ("python3.10", "python3.11", "python3.9")
 
 
 def test_pythons_to_check_specific_cpython_tag():
-    tag = "cp38-cp38-manylinux1_aarch64.whl"
+    tag = "cp39-cp39-manylinux1_aarch64.whl"
     ret = validate._pythons_to_check(parse_tag(tag))
-    assert ret == ("python3.8",)
+    assert ret == ("python3.9",)
 
 
 def test_top_imports_record(tmp_path):

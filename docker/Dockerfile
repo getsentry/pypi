@@ -1,4 +1,4 @@
-FROM python:3.8.16-slim-buster
+FROM python:3.9.16-slim-buster
 RUN : \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install \
@@ -55,7 +55,7 @@ RUN /tmp/install-pythons
 
 COPY requirements.txt /tmp/requirements.txt
 RUN : \
-    && /opt/python/cp38-cp38/bin/python3.8 -m venv /venv \
+    && /opt/python/cp39-cp39/bin/python3.9 -m venv /venv \
     && /venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 ENTRYPOINT ["dumb-init", "--"]
