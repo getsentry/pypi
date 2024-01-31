@@ -1,4 +1,4 @@
-FROM python:3.9.16-slim-buster
+FROM python:3.10.12-slim-buster
 RUN : \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install \
@@ -45,7 +45,7 @@ RUN : \
 
 ENV \
     BUILD_IN_CONTAINER=1 \
-    PATH=/venv/bin:/opt/python/cp38-cp38/bin:/opt/python/cp39-cp39/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:$PATH \
+    PATH=/venv/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:$PATH \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_NO_WARN_ABOUT_ROOT_USER=0
@@ -55,7 +55,7 @@ RUN /tmp/install-pythons
 
 COPY requirements.txt /tmp/requirements.txt
 RUN : \
-    && /opt/python/cp39-cp39/bin/python3.9 -m venv /venv \
+    && /opt/python/cp310-cp310/bin/python3.10 -m venv /venv \
     && /venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 ENTRYPOINT ["dumb-init", "--"]
