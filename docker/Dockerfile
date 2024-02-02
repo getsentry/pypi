@@ -46,7 +46,7 @@ RUN : \
 
 ENV \
     BUILD_IN_CONTAINER=1 \
-    PATH=/venv/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:$PATH \
+    PATH=/venv/bin:/opt/python/cp310-cp310/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin:$PATH \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_NO_WARN_ABOUT_ROOT_USER=0
