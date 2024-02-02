@@ -5,38 +5,49 @@ import argparse
 import hashlib
 import os.path
 import platform
-import re
 import secrets
 import subprocess
 import sys
 import tempfile
 
-# gsutil cp gs://sentry-dev-infra-assets/prebuilt-pythons/python-{3.10.8+0,3.11.0+0}.sha256sums -
+RELEASE = (
+    "https://github.com/indygreg/python-build-standalone/releases/download/20231002/"
+)
+# curl --silent --location https://github.com/indygreg/python-build-standalone/releases/download/20231002/SHA256SUMS | grep -E '(aarch64-apple-darwin-pgo\+lto-full|x86_64-apple-darwin-pgo\+lto-full|aarch64-unknown-linux-gnu-lto-full|x86_64-unknown-linux-gnu-pgo\+lto-full)'
 CHECKSUMS = """\
-503f2b82d52647c322af626052995cded0a23899cca94600aa80eb193e4b926a  python-3.10.9+0-macosx_12_0_arm64.tgz
-30c919dd9be7767488d7953946c6dd39d058571b85c280c7e33df2fb771149cc  python-3.10.9+0-macosx_12_0_x86_64.tgz
-2ca822fa3c09e515dcbdcf7c8f4b091cc47b5c935b44083f69fd572580f9ceca  python-3.10.9+0-manylinux_2_28_aarch64.tgz
-639fb9945dc8bccc821aff98595f877e0a50e273a1b352886c31908ce95e1098  python-3.10.9+0-manylinux_2_28_x86_64.tgz
-ffdf9ade5d7023921a175294248003ac95f4c4ee6babb5c3d7f9f7650146a96e  python-3.11.1+0-macosx_12_0_arm64.tgz
-951f381c4e286717b89a03bd8e217cb07f745727f101de21d4a048a08139ae3e  python-3.11.1+0-macosx_12_0_x86_64.tgz
-42fba60f08fffc41e2a2eed0763eb8df57c7e79a56809d883c73efdc3dbba0e2  python-3.11.1+0-manylinux_2_28_aarch64.tgz
-be999ab895e67ebf7b199108090c0c09a0fad6cd9f1034dd9bd15ba61f8ef05f  python-3.11.1+0-manylinux_2_28_x86_64.tgz
+a2635841454295c5bc2c18740346fd8308f2a8adcce2407b87c9faf261fed29c  cpython-3.10.13+20231002-aarch64-apple-darwin-pgo+lto-full.tar.zst
+94378303df7117f80c6832979d21295413148e46cbab5f737a403f8b21b30335  cpython-3.10.13+20231002-aarch64-unknown-linux-gnu-lto-full.tar.zst
+e7db06af69f8a51b05f9f82032957d08c07cf75a06a3db6973aa0d4a05d2a95c  cpython-3.10.13+20231002-x86_64-apple-darwin-pgo+lto-full.tar.zst
+a28cc6d21373a41256cd176bd2f77a3190eb12f132602d344afc3dba6fa454c9  cpython-3.10.13+20231002-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+6e9007bcbbf51203e89c34a87ed42561630a35bc4eb04a565c92ba7159fe5826  cpython-3.11.6+20231002-aarch64-apple-darwin-pgo+lto-full.tar.zst
+7c621a748a4fd6ae99d8ba7ec2da59173d31475838382a13df6d2b1bf95a7059  cpython-3.11.6+20231002-aarch64-unknown-linux-gnu-lto-full.tar.zst
+3685156e4139e89484c071ba1a1b85be0b4e302a786de5a170d3b0713863c2e8  cpython-3.11.6+20231002-x86_64-apple-darwin-pgo+lto-full.tar.zst
+6da291720c9fe2f63c5c55f7acc8b6094a05488453a84cfcc012e92305099ee7  cpython-3.11.6+20231002-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+25fc8cd41e975d18d13bcc8f8beffa096ff8a0b86c4a737e1c6617900092c966  cpython-3.12.0+20231002-aarch64-apple-darwin-pgo+lto-full.tar.zst
+86e16b6defbbd7db0b7f98879b2b381e0e5b0ec07126cb9f5fc0cafe9869dc36  cpython-3.12.0+20231002-aarch64-unknown-linux-gnu-lto-full.tar.zst
+3b4781e7fd4efabe574ba0954e54c35c7d5ac4dc5b2990b40796c1c6aec67d79  cpython-3.12.0+20231002-x86_64-apple-darwin-pgo+lto-full.tar.zst
+5ce861907a2751a3a7395b1aaada830c2b072acc03f3dd0bcbaaa2b7a9166fc0  cpython-3.12.0+20231002-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+10abf67384ea0728fff82782408f8e398bc17ef55985d6ebef2aaae319a7df31  cpython-3.8.18+20231002-aarch64-apple-darwin-pgo+lto-full.tar.zst
+92ebfe81d78d4e28d8a02a29f540e4db785a5e9b51559d85013f57ffe3a6f985  cpython-3.8.18+20231002-aarch64-unknown-linux-gnu-lto-full.tar.zst
+b89799abf243739a4ef5b71e7373e45e56e097aec0853b813aa31d1dcb68799e  cpython-3.8.18+20231002-x86_64-apple-darwin-pgo+lto-full.tar.zst
+286910aea21d8c7a5b0ecda6214eec6c197122b7b738fdfd6ed59f7c0ba9f65f  cpython-3.8.18+20231002-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+bdf883f6a6ba9ea1bd72029670737232bfbd9a07708d85dd2bf6a3deb2aa3a5d  cpython-3.9.18+20231002-aarch64-apple-darwin-pgo+lto-full.tar.zst
+4cd4240b08e82e0b279152cd2afad556a0c8cd9ee3d285fe3a5770b5a934fe26  cpython-3.9.18+20231002-aarch64-unknown-linux-gnu-lto-full.tar.zst
+0ee342ed3d6051a41e7702bec98db463c5ffe4dcb634e10cae464e42adb2fb3e  cpython-3.9.18+20231002-x86_64-apple-darwin-pgo+lto-full.tar.zst
+02f5c6bf29f173fe1653965409b891691ab413e579766d3e5bccdc74634b9bde  cpython-3.9.18+20231002-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
 """
-VERSIONS = ("3.10.9+0", "3.11.1+0")
-PLAT_TAG = {"linux": "manylinux", "darwin": "macosx"}
-PLAT_RE = re.compile(f"{PLAT_TAG[sys.platform]}_.+{platform.machine()}$")
+VERSIONS = ("3.10.13", "3.11.6", "3.12.0")
+ARCH_MAP = {"arm64": "aarch64"}
+ARCH = ARCH_MAP.get(platform.machine(), platform.machine())
 
 
 def _checksum_url(version: str) -> tuple[str, str]:
     for line in CHECKSUMS.splitlines():
         sha256, filename = line.split()
-        base, _ = os.path.splitext(filename)
-        _, f_version, plat = base.split("-")
-        if version == f_version and PLAT_RE.match(plat):
-            return (
-                sha256,
-                f"https://storage.googleapis.com/sentry-dev-infra-assets/prebuilt-pythons/{filename}",
-            )
+        _, f_version_release, arch, _, plat, *_ = filename.split("-")
+        f_version, _ = f_version_release.split("+")
+        if version == f_version and sys.platform == plat and ARCH == arch:
+            return (sha256, f"{RELEASE}/{filename}")
     else:
         raise NotImplementedError(version, sys.platform, platform.machine())
 
@@ -65,7 +76,15 @@ def main() -> int:
                 raise AssertionError(f"checksum mismatch {sha256=} {expected=}")
 
             os.makedirs(dest, exist_ok=True)
-            tar_cmd = ("tar", "-C", dest, "--strip-components=1", "-xf", tgz_dest)
+            tar_cmd = (
+                "tar",
+                "-C",
+                dest,
+                "--strip-components=2",
+                "-xf",
+                tgz_dest,
+                "python/install",
+            )
             subprocess.check_call(tar_cmd)
 
             py = os.path.join(dest, "bin", "python3")
