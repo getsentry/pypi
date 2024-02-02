@@ -21,7 +21,10 @@ jobs:
         name: dist-linux
         path: dist/*
   macos:
-    runs-on: macos-latest
+    strategy:
+      matrix:
+        runs-on: [macos-14, macos-latest]
+    runs-on: ${{ matrix.runs-on }}
     steps:
     - uses: actions/checkout@v3
     - run: python3 -u docker/install-pythons --dest pythons
@@ -34,14 +37,14 @@ jobs:
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
     - uses: actions/upload-artifact@v3
       with:
-        name: dist-macos
+        name: dist-${{ matrix.runs-on }}
         path: dist/*
 
   cirrus:
     if: github.event_name != 'pull_request'
     strategy:
       matrix:
-        task: [macos-arm64, linux-arm64]
+        task: [linux-arm64]
     runs-on: ubuntu-latest
     permissions:
       checks: read
