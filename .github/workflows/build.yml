@@ -6,7 +6,7 @@ on:
 
 concurrency:
   # serialize runs on the default branch
-  group: ${{ github.event_name == 'push' && github.workflow || github.sha }}
+  group: ${{ github.event_name == 'push' && github.workflow || github.sha }}${{ github.workflow }}
 
 jobs:
   linux:
