@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import os.path
 import platform
+import re
 import secrets
 import subprocess
 import sys
@@ -31,6 +32,16 @@ f267489a041daf4e523c03d32639de04ee59ca925dff49a8c3ce2f28a9f70a3b  cpython-3.12.1
 VERSIONS = ("3.10.13", "3.11.7", "3.12.1")
 ARCH_MAP = {"arm64": "aarch64"}
 ARCH = ARCH_MAP.get(platform.machine(), platform.machine())
+
+CLANG_PP = re.compile(r"\bclang\+\+")
+CLANG = re.compile(r"\bclang\b")
+
+
+def _must_sub(reg: re.Pattern[str], new: str, s: str) -> str:
+    after = reg.sub(new, s)
+    if after == s:
+        raise AssertionError(f"expected replacement by {reg} => {new}!")
+    return after
 
 
 def _checksum_url(version: str) -> tuple[str, str]:
@@ -78,6 +89,20 @@ def main() -> int:
                 "python/install",
             )
             subprocess.check_call(tar_cmd)
+
+            # https://github.com/indygreg/python-build-standalone/issues/209
+            if sys.platform == "linux" and ARCH == "x86_64":
+                for fname in (
+                    f"{dest}/lib/python{major}.{minor}/config-{major}.{minor}-x86_64-linux-gnu/Makefile",
+                    f"{dest}/lib/python{major}.{minor}/_sysconfigdata__linux_x86_64-linux-gnu.py",
+                ):
+                    print(f"XXX: fixing up build metadata in {fname}")
+                    with open(fname) as f:
+                        contents = f.read()
+                    contents = _must_sub(CLANG_PP, "c++", contents)
+                    contents = _must_sub(CLANG, "cc", contents)
+                    with open(fname, "w") as f:
+                        f.write(contents)
 
             py = os.path.join(dest, "bin", "python3")
             subprocess.check_call((py, "-mensurepip"))
