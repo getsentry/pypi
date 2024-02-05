@@ -27,10 +27,15 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
     - uses: actions/checkout@v3
+    - run: |
+        # work around https://github.com/indygreg/python-build-standalone/issues/208
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-tar
+        echo "$(brew --prefix gnu-tar)/libexec/gnubin" >> "$GITHUB_PATH"
     - run: python3 -u docker/install-pythons --dest pythons
     - run: |
         echo "$PWD/pythons/cp310-cp310/bin" >> "$GITHUB_PATH"
         echo "$PWD/pythons/cp311-cp311/bin" >> "$GITHUB_PATH"
+        echo "$PWD/pythons/cp312-cp312/bin" >> "$GITHUB_PATH"
         echo "$PWD/venv/bin" >> "$GITHUB_PATH"
     - run: python3 -um venv venv && pip install -r docker/requirements.txt
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
