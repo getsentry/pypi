@@ -3,8 +3,8 @@ from __future__ import annotations
 import zipfile
 
 import pytest
-from packaging.specifiers import SpecifierSet
 from packaging.tags import parse_tag
+from packaging.specifiers import SpecifierSet
 
 import validate
 
