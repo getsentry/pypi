@@ -58,6 +58,7 @@ def test_package_default():
         apt_requires=(),
         brew_requires=(),
         custom_prebuild=(),
+        likely_binary_ignore=(),
         python_versions=SpecifierSet(),
     )
 
@@ -83,6 +84,7 @@ def test_package_parses_split_values():
         apt_requires=("pkg-config", "libxslt1-dev"),
         brew_requires=("pkg-config", "libxml"),
         custom_prebuild=("prebuild/crc32c", "deadbeef"),
+        likely_binary_ignore=(),
         python_versions=SpecifierSet(),
     )
 
@@ -238,7 +240,7 @@ def test_likely_binary_zip(tmp_path):
         zipf.open("a-1/src/_ext.c", "w").close()
         zipf.open("a-1/src/_ext.pyx", "w").close()
 
-    reason = build._likely_binary(str(filename))
+    reason = build._likely_binary(str(filename), ())
     assert reason == "sdist contains files with these extensions: .c, .pyx"
 
 
@@ -248,7 +250,7 @@ def test_likely_binary_tgz(tmp_path):
         tarf.addfile(tarfile.TarInfo("a-1/src/ext.py"))
         tarf.addfile(tarfile.TarInfo("a-1/src/_ext.c"))
 
-    reason = build._likely_binary(str(filename))
+    reason = build._likely_binary(str(filename), ())
     assert reason == "sdist contains files with these extensions: .c"
 
 
@@ -265,7 +267,7 @@ def test_likely_binary_cffi_zip(tmp_path):
                 b"    setup()\n"
             )
 
-    reason = build._likely_binary(str(filename))
+    reason = build._likely_binary(str(filename), ())
     assert reason == "sdist setup.py has `cffi_modules`"
 
 
@@ -284,7 +286,7 @@ def test_likely_binary_cffi_tar(tmp_path):
         tar_info.size = len(bio.getvalue())
         tarf.addfile(tar_info, bio)
 
-    reason = build._likely_binary(str(filename))
+    reason = build._likely_binary(str(filename), ())
     assert reason == "sdist setup.py has `cffi_modules`"
 
 
@@ -294,7 +296,16 @@ def test_likely_binary_ignores_test_files(tmp_path):
         tarf.addfile(tarfile.TarInfo("a-1/test/_ext.pyd"))
         tarf.addfile(tarfile.TarInfo("a-1/tests/_ext.c"))
 
-    reason = build._likely_binary(str(filename))
+    reason = build._likely_binary(str(filename), ())
+    assert reason is None
+
+
+def test_likely_binary_ignore(tmp_path):
+    filename = tmp_path.joinpath("a-1.tar.gz")
+    with tarfile.open(filename, "w:gz") as tarf:
+        tarf.addfile(tarfile.TarInfo("a-1/foo/bar.c"))
+
+    reason = build._likely_binary(str(filename), ("a-1/foo/bar.c",))
     assert reason is None
 
 

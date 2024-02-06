@@ -74,7 +74,7 @@ source files:
 ```ini
 [salt==3006.6]
 likely_binary_ignore =
-    pkg/smartos/esky/sodium_grabber.c
+    salt-3006.6/pkg/old/smartos/esky/sodium_grabber.c
 ```
 
 ### python_versions
