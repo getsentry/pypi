@@ -11,7 +11,6 @@ import zipfile
 from collections.abc import Mapping
 from typing import NamedTuple
 
-from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
@@ -24,18 +23,15 @@ class Info(NamedTuple):
     validate_extras: str | None
     validate_incorrect_missing_deps: tuple[str, ...]
     validate_skip_imports: tuple[str, ...]
-    python_versions: SpecifierSet
 
     @classmethod
     def from_dct(cls, dct: Mapping[str, str]) -> Info:
-        python_versions = dct.get("python_versions") or ""
         return cls(
             validate_extras=dct.get("validate_extras") or None,
             validate_incorrect_missing_deps=tuple(
                 dct.get("validate_incorrect_missing_deps", "").split()
             ),
             validate_skip_imports=tuple(dct.get("validate_skip_imports", "").split()),
-            python_versions=SpecifierSet(python_versions),
         )
 
 
@@ -96,10 +92,6 @@ def _validate(
     info: Info,
     index_url: str,
 ) -> None:
-    # quick hack before i go to bed - py_exe just prepends python to {major}.{minor}
-    if python[6:] not in info.python_versions:
-        print(f"skipping validating {python}: {filename}")
-        return
     print(f"validating {python}: {filename}")
     with tempfile.TemporaryDirectory() as tmpdir:
         print("creating env")
