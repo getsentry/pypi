@@ -500,7 +500,7 @@ def _prebuild(
             env.update(before)
 
 
-def _likely_binary(sdist: str, likely_binary_ignore: tuple[str, ...]]) -> str | None:
+def _likely_binary(sdist: str, likely_binary_ignore: tuple[str, ...]) -> str | None:
     if sdist.endswith(".zip"):
         with zipfile.ZipFile(sdist) as zipf:
             names = zipf.namelist()
@@ -528,8 +528,7 @@ def _likely_binary(sdist: str, likely_binary_ignore: tuple[str, ...]]) -> str | 
         if "/test/" in name or "/tests/" in name:
             continue
 
-        print(name)
-        if name in package.likely_binary_ignore:
+        if name in likely_binary_ignore:
             continue
 
         _, ext = os.path.splitext(name)
