@@ -53,6 +53,8 @@ def main() -> int:
                 "-DCRC32C_BUILD_TESTS=no",
                 "-DCRC32C_BUILD_BENCHMARKS=no",
                 "-DBUILD_SHARED_LIBS=yes",
+                f"-DCMAKE_INSTALL_PREFIX:PATH={args.prefix}",
+                f"-DCMAKE_INSTALL_NAME_DIR:PATH={args.prefix}/lib",
                 "..",
             ),
             cwd=build_dir,
