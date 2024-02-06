@@ -4,6 +4,7 @@ import zipfile
 
 import pytest
 from packaging.tags import parse_tag
+from packaging.specifiers import SpecifierSet
 
 import validate
 
@@ -14,6 +15,7 @@ def test_info_nothing_supplied():
         validate_extras=None,
         validate_incorrect_missing_deps=(),
         validate_skip_imports=(),
+        python_versions=SpecifierSet(),
     )
     assert info == expected
 
@@ -24,12 +26,14 @@ def test_info_all_supplied():
             "validate_extras": "d",
             "validate_incorrect_missing_deps": "six",
             "validate_skip_imports": "uwsgidecorators",
+            "python_versions": "<3.11",
         }
     )
     expected = validate.Info(
         validate_extras="d",
         validate_incorrect_missing_deps=("six",),
         validate_skip_imports=("uwsgidecorators",),
+        python_versions=SpecifierSet("<3.11"),
     )
     assert info == expected
 
