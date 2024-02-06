@@ -15,29 +15,22 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, arm64]
-    env:
-      TARGET_TAG: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: enable cross build
       run: docker run --rm --privileged tonistiigi/binfmt --install arm64
       if: matrix.arch == 'arm64'
+    - name: login
+      run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     - name: build
       run: |
-        args=()
-        if docker pull -q "$TARGET_TAG"; then
-          args+=(--cache-from "$TARGET_TAG")
-        fi
         docker buildx build \
-            "${args[@]}" \
+            --cache-from ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
+            --cache-to type=inline \
             --platform linux/${{ matrix.arch }} \
-            --tag "${TARGET_TAG}:${GITHUB_SHA}" \
+            --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }} \
+            --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && '--push' || '' }} \
             docker
-        docker tag "${TARGET_TAG}:${GITHUB_SHA}" "${TARGET_TAG}:latest"
-    - name: push
-      run: |
-        docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
-        docker push "${TARGET_TAG}:${GITHUB_SHA}"
-        docker push "${TARGET_TAG}:latest"
-      if: github.event_name != 'pull_request'
