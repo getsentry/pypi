@@ -47,9 +47,6 @@ brew_requires =
     pkg-config
 ```
 
-some packages on pypi have incorrectly built wheels -- these can be ignored (forcing them to
-be built rather than imported):
-
 ### custom_prebuild
 
 sometimes the dependencies aren't packaged for apt / brew and you need a custom
