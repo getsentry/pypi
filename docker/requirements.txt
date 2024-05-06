@@ -9,7 +9,7 @@ delocate==0.10.4
 distlib==0.3.8
 dumb-pypi==1.13.0
 filelock==3.13.1
-jinja2==3.1.3
+jinja2==3.1.4
 markupsafe==2.1.1
 packaging==21.3
 patchelf==0.14.5.0 ; sys_platform == "linux"
