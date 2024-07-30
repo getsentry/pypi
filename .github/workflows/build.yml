@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v3
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: dist-linux
         path: dist/*
@@ -40,7 +40,7 @@ jobs:
     - run: python3 -um venv venv && pip install -r docker/requirements.txt
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: dist-${{ matrix.runs-on }}
         path: dist/*
@@ -58,7 +58,7 @@ jobs:
       with:
         task: ${{ matrix.task }}
       timeout-minutes: 60
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: dist-${{ matrix.task }}
         path: dist/*
