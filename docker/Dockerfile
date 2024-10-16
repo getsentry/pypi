@@ -1,4 +1,4 @@
-FROM python:3.10.12-slim-buster
+FROM python:3.11.4-slim-buster
 RUN : \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install \
@@ -56,7 +56,7 @@ RUN /tmp/install-pythons
 
 COPY requirements.txt /tmp/requirements.txt
 RUN : \
-    && /opt/python/cp310-cp310/bin/python3.10 -m venv /venv \
+    && /opt/python/cp311-cp311/bin/python3.11 -m venv /venv \
     && /venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 ENTRYPOINT ["dumb-init", "--"]
