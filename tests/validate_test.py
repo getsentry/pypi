@@ -43,24 +43,24 @@ def test_pythons_to_check_no_pythons_raises_error():
 
 def test_pythons_to_check_py2_ignored():
     ret = validate._pythons_to_check(parse_tag("py2.py3-none-any"))
-    assert ret == ("python3.11", "python3.12")
+    assert ret == ("python3.11", "python3.12", "python3.13")
 
 
 def test_pythons_to_check_py3_gives_all():
     ret = validate._pythons_to_check(parse_tag("py3-none-any"))
-    assert ret == ("python3.11", "python3.12")
+    assert ret == ("python3.11", "python3.12", "python3.13")
 
 
 def test_pythons_to_check_abi3():
     tag = "cp37-abi3-manylinux1_x86_64"
     ret = validate._pythons_to_check(parse_tag(tag))
-    assert ret == ("python3.11", "python3.12")
+    assert ret == ("python3.11", "python3.12", "python3.13")
 
 
 def test_pythons_to_check_minimum_abi3():
     tag = "cp312-abi3-manylinux1_x86_64"
     ret = validate._pythons_to_check(parse_tag(tag))
-    assert ret == ("python3.12",)
+    assert ret == ("python3.12", "python3.13")
 
 
 def test_pythons_to_check_specific_cpython_tag():
