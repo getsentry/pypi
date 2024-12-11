@@ -7,6 +7,12 @@ jobs:
     if: github.actor == 'getsentry-bot' && startsWith(github.head_ref, 'craft-')
     runs-on: ubuntu-latest
     steps:
+    - name: Get auth token
+      id: token
+      uses: actions/create-github-app-token@5d869da34e18e7287c1daad50e0b8ea0f506ce69 # v1.11.0
+      with:
+        app-id: ${{ vars.SENTRY_RELEASE_BOT_CLIENT_ID }}
+        private-key: ${{ secrets.SENTRY_RELEASE_BOT_PRIVATE_KEY }}
     - run: |
         set -x
         GH_TOKEN=$GHA_TOKEN gh pr review --approve --repo "$GITHUB_REPOSITORY" "$PR"
@@ -14,4 +20,4 @@ jobs:
       env:
         PR: ${{ github.event.number }}
         GHA_TOKEN: ${{ github.token }}
-        BOT_TOKEN: ${{ secrets.GH_RELEASE_PAT }}
+        BOT_TOKEN: ${{ steps.token.outputs.token }}
