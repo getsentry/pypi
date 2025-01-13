@@ -17,7 +17,7 @@ platformdirs==4.2.0
 pyelftools==0.28
 pyparsing==3.0.9
 typing-extensions==4.3.0
-virtualenv==20.25.0
+virtualenv==20.26.6
 wheel==0.38.4
 
 # The following packages are considered to be unsafe in a requirements file:
