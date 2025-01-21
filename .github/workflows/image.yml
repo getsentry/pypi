@@ -14,13 +14,12 @@ jobs:
   image:
     strategy:
       matrix:
-        arch: [amd64, arm64]
-    runs-on: ubuntu-latest
+        include:
+        - {arch: amd64, os: ubuntu-latest}
+        - {arch: arm64, os: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - name: enable cross build
-      run: docker run --rm --privileged tonistiigi/binfmt --install arm64
-      if: matrix.arch == 'arm64'
     - name: login
       run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
