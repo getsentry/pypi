@@ -10,15 +10,20 @@ concurrency:
 
 jobs:
   linux:
-    runs-on: ubuntu-latest
-    container: ghcr.io/getsentry/pypi-manylinux-amd64-ci
+    strategy:
+      matrix:
+        include:
+        - {arch: amd64, os: ubuntu-latest}
+        - {arch: arm64, os: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.os }}
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
     steps:
     - uses: actions/checkout@v3
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
     - uses: actions/upload-artifact@v4
       with:
-        name: dist-linux
+        name: dist-linux-${{ matrix.arch }}
         path: dist/*
   macos:
     strategy:
@@ -45,26 +50,8 @@ jobs:
         name: dist-${{ matrix.runs-on }}
         path: dist/*
 
-  cirrus:
-    if: github.event_name != 'pull_request'
-    strategy:
-      matrix:
-        task: [linux-arm64]
-    runs-on: ubuntu-latest
-    permissions:
-      checks: read
-    steps:
-    - uses: getsentry/action-wait-for-cirrus@v1.0.0
-      with:
-        task: ${{ matrix.task }}
-      timeout-minutes: 60
-    - uses: actions/upload-artifact@v4
-      with:
-        name: dist-${{ matrix.task }}
-        path: dist/*
-
   collect-and-deploy:
-    needs: [linux, macos, cirrus]
+    needs: [linux, macos]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
