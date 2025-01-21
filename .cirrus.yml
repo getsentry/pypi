@@ -1,9 +1,0 @@
-linux_task:
-  name: linux-arm64
-  arm_container:
-    image: ghcr.io/getsentry/pypi-manylinux-arm64-ci
-  script:
-  - python3 -um build --pypi-url https://pypi.devinfra.sentry.io
-  - python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
-  artifacts:
-    path: dist/*
