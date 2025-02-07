@@ -4,7 +4,7 @@ on:
 
 jobs:
   auto-merge:
-    if: github.actor == 'getsentry-bot' && startsWith(github.head_ref, 'craft-')
+    if: github.actor == 'sentry-release-bot[bot]' && startsWith(github.head_ref, 'craft-')
     runs-on: ubuntu-latest
     steps:
     - name: Get auth token
