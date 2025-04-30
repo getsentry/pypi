@@ -54,9 +54,6 @@ jobs:
     needs: [linux, macos]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
@@ -67,8 +64,8 @@ jobs:
       with:
         path: dist
     - run: python3 -um make_index --pypi-url https://pypi.devinfra.sentry.io --dest index
-    - uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
+    - uses: google-github-actions/auth@v0
       with:
-        workload_identity_provider: projects/868781662168/locations/global/workloadIdentityPools/prod-github/providers/github-oidc-pool
-        service_account: gha-pypi@sac-prod-sa.iam.gserviceaccount.com
+        credentials_json: ${{ secrets.PYPI_DEVINFRA_SENTRY_IO }}
+    - run: yes | gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS"
     - run: python3 -uS bin/upload-artifacts
