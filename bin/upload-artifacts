@@ -6,9 +6,9 @@ import os.path
 import shlex
 import subprocess
 
-CACHE_ONE_HOUR = ("-h", "Cache-Control: public, max-age=3600")  # gcs default
-CACHE_FIVE_MINUTES = ("-h", "Cache-Control: public, max-age=300")
-CACHE_NO = ("-h", "Cache-Control: no-store")
+CACHE_ONE_HOUR = ("--cache-control", "public, max-age=3600")  # gcs default
+CACHE_FIVE_MINUTES = ("--cache-control", "public, max-age=300")
+CACHE_NO = ("--cache-control", "no-store")
 
 
 def main() -> int:
@@ -24,20 +24,20 @@ def main() -> int:
     cmds = (
         # upload wheels first before the index
         (
-            "gsutil",
-            *CACHE_ONE_HOUR,  # these are immutable so cache at default
-            "-m",  # parallel
+            "gcloud",
+            "storage",
             "cp",
             "-n",  # no-clobber
+            *CACHE_ONE_HOUR,  # these are immutable so cache at default
             os.path.join(args.index, "wheels", "*"),
             "gs://pypi.devinfra.sentry.io/wheels/",
         ),
         # upload the site parts in clobber mode (may be updating pages)
         (
-            "gsutil",
-            *CACHE_FIVE_MINUTES,  # shorter than default to make pip snappier
-            "-m",  # parallel
+            "gcloud",
+            "storage",
             "cp",
+            *CACHE_FIVE_MINUTES,  # shorter than default to make pip snappier
             "-r",  # recursive
             *(
                 os.path.join(args.index, name)
@@ -47,10 +47,11 @@ def main() -> int:
             "gs://pypi.devinfra.sentry.io",
         ),
         (
-            "gsutil",
+            "gcloud",
+            "storage",
+            "cp",
             # the packages.json file must be consistently read so no caching
             *CACHE_NO,
-            "cp",
             os.path.join(args.index, "packages.json"),
             "gs://pypi.devinfra.sentry.io",
         ),
