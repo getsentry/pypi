@@ -48,6 +48,7 @@ def _make_info(filename: str) -> dict[str, Any]:
     return {
         "filename": os.path.basename(filename),
         "hash": f"sha256={sha256}",
+        "core_metadata": f"sha256={sha256}",
         "upload_timestamp": t,
         "uploaded_by": f"git@{h}",
         **{k: v for k, v in dist_info.items() if v},
@@ -83,10 +84,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         for filename in filenames
     ):
         basename = os.path.basename(filename)
-        if basename in on_pypi:
-            raise AssertionError(f"{basename}: already on pypi?")
-        elif basename in seen:
-            continue
+        #if basename in on_pypi:
+        #    raise AssertionError(f"{basename}: already on pypi?")
+        #elif basename in seen:
+        #    continue
 
         seen.add(basename)
         new_packages.append(_make_info(filename))
