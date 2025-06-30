@@ -60,7 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--dist", default="dist")
     parser.add_argument("--pypi-url", required=True)
     parser.add_argument("--dest", required=True)
-    parser.add_argument("--rebuild", default=False)
+    parser.add_argument("--rebuild", action="store_true")
     args = parser.parse_args(argv)
 
     url = urllib.parse.urljoin(args.pypi_url, "packages.json")
