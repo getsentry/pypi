@@ -65,6 +65,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     url = urllib.parse.urljoin(args.pypi_url, "packages.json")
     packages = [json.loads(line) for line in urllib.request.urlopen(url)]
     on_pypi = {package["filename"] for package in packages}
+    has_core_metadata = {
+        package["filename"] for package in packages if package.get("core_metadata")
+    }
 
     shutil.rmtree(args.dest, ignore_errors=True)
     os.makedirs(args.dest, exist_ok=True)
@@ -84,10 +87,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         for filename in filenames
     ):
         basename = os.path.basename(filename)
-        if basename in on_pypi:
-            raise AssertionError(f"{basename}: already on pypi?")
-        elif basename in seen:
-            continue
+
+        # core metadata backfill
+        if has_core_metadata:
+            if basename in on_pypi:
+                raise AssertionError(f"{basename}: already on pypi?")
+            elif basename in seen:
+                continue
 
         seen.add(basename)
         package_info = _make_info(filename)
