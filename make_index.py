@@ -89,7 +89,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         basename = os.path.basename(filename)
 
         # core metadata backfill
-        if has_core_metadata:
+        if filename in has_core_metadata:
             if basename in on_pypi:
                 raise AssertionError(f"{basename}: already on pypi?")
             elif basename in seen:

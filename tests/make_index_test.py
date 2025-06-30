@@ -31,6 +31,7 @@ def test_make_info_empty_wheel_metadata(tmp_path):
     assert ret == {
         "filename": "a-1-py3-none-any.whl",
         "hash": "sha256=64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527",
+        "core_metadata": "sha256=64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527",
         "upload_timestamp": mock.ANY,
         "uploaded_by": re_assert.Matches(r"^git@[a-f0-9]{7}"),
     }
@@ -57,6 +58,7 @@ def test_make_info_full_wheel_metadata(tmp_path):
             "jsonschema",
             "packaging (==21.3) ; extra = 'p'",
         ],
+        "core_metadata": "sha256=4e6da08b56614db68d4139aca043731c1fed51496ef168b5be2c67737dfe9f9a",
         "requires_python": ">= 3.7, != 3.7.0",
         "upload_timestamp": mock.ANY,
         "uploaded_by": re_assert.Matches(r"^git@[a-f0-9]{7}"),
