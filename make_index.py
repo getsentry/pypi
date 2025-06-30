@@ -84,14 +84,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         for filename in filenames
     ):
         basename = os.path.basename(filename)
-        #if basename in on_pypi:
-        #    raise AssertionError(f"{basename}: already on pypi?")
-        #elif basename in seen:
-        #    continue
+        if basename in on_pypi:
+            raise AssertionError(f"{basename}: already on pypi?")
+        elif basename in seen:
+            continue
 
         seen.add(basename)
-        new_packages.append(_make_info(filename))
+        package_info = _make_info(filename)
+        new_packages.append(package_info)
         shutil.copy(filename, wheels_dir)
+
+        with open(f"{wheels_dir}/{basename}.metadata", "w") as f:
+            f.write(package_info["core_metadata"])
 
     with tempfile.TemporaryDirectory() as tmpdir:
         prev_json = os.path.join(tmpdir, "previous.json")

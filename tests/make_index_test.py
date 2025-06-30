@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import os.path
 import urllib.request
 import zipfile
@@ -35,8 +36,6 @@ def test_make_info_empty_wheel_metadata(tmp_path):
     }
 
 
-# todo
-
 def test_make_info_full_wheel_metadata(tmp_path):
     filename = str(tmp_path.joinpath("a-1-py3-none-any.whl"))
     make_wheel(
@@ -67,7 +66,8 @@ def test_make_info_full_wheel_metadata(tmp_path):
 def test_main_new_package(tmp_path):
     dist = tmp_path.joinpath("dist")
     dist.mkdir()
-    make_wheel(dist.joinpath("a-1-py3-none-any.whl"), ())
+    wheel_name = "a-1-py3-none-any.whl"
+    make_wheel(dist.joinpath(wheel_name), ())
     dest = tmp_path.joinpath("dest")
 
     bio = io.BytesIO(b"")
@@ -82,8 +82,16 @@ def test_main_new_package(tmp_path):
 
     # just some smoke tests about the output
     assert dest.joinpath("packages.json").exists()
-    assert dest.joinpath("wheels/a-1-py3-none-any.whl").exists()
-    assert dest.joinpath("simple/a/index.html").exists()
+    assert dest.joinpath(f"wheels/{wheel_name}").exists()
+
+    sha = "64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527"
+
+    with open(dest.joinpath("simple/a/index.html")) as f:
+        index_html = re.sub(r'\s+', ' ', f.read())
+        assert f'<a href="http://example.com/wheels/{wheel_name}#sha256={sha}" data-core-metadata="sha256={sha}" >a-1-py3-none-any.whl</a>' in index_html
+
+    with open(dest.joinpath(f"wheels/{wheel_name}.metadata")) as f:
+        assert f.read() == f"sha256={sha}"
 
 
 def test_main_multiple_provide_same_package_first_wins(tmp_path):
