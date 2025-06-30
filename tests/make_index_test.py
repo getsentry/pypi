@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import io
 import json
-import re
 import os.path
+import re
 import urllib.request
 import zipfile
 from unittest import mock
@@ -87,8 +87,11 @@ def test_main_new_package(tmp_path):
     sha = "64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527"
 
     with open(dest.joinpath("simple/a/index.html")) as f:
-        index_html = re.sub(r'\s+', ' ', f.read())
-        assert f'<a href="http://example.com/wheels/{wheel_name}#sha256={sha}" data-core-metadata="sha256={sha}" >a-1-py3-none-any.whl</a>' in index_html
+        index_html = re.sub(r"\s+", " ", f.read())
+        assert (
+            f'<a href="http://example.com/wheels/{wheel_name}#sha256={sha}" data-core-metadata="sha256={sha}" >a-1-py3-none-any.whl</a>'
+            in index_html
+        )
 
     with open(dest.joinpath(f"wheels/{wheel_name}.metadata")) as f:
         assert f.read() == f"sha256={sha}"
