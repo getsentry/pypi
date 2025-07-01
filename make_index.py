@@ -31,6 +31,8 @@ def _make_info(filename: str) -> dict[str, Any]:
     with open(filename, "rb") as f:
         sha256 = hashlib.sha256(f.read()).hexdigest()
 
+    metadata_bytes = b""
+
     with zipfile.ZipFile(filename) as zipf:
         (metadata,) = (
             name
@@ -38,7 +40,9 @@ def _make_info(filename: str) -> dict[str, Any]:
             if name.endswith(".dist-info/METADATA") and name.count("/") == 1
         )
         with zipf.open(metadata) as f:
-            info = email.message_from_binary_file(f)
+            metadata_bytes = f.read()
+            metadata_sha256 = hashlib.sha256(metadata_bytes).hexdigest()
+            info = email.message_from_bytes(metadata_bytes)
 
     dist_info = {
         "requires_dist": info.get_all("requires-dist"),
@@ -48,7 +52,8 @@ def _make_info(filename: str) -> dict[str, Any]:
     return {
         "filename": os.path.basename(filename),
         "hash": f"sha256={sha256}",
-        "core_metadata": f"sha256={sha256}",
+        "core_metadata": f"sha256={metadata_sha256}",
+        "_metadata": metadata_bytes,
         "upload_timestamp": t,
         "uploaded_by": f"git@{h}",
         **{k: v for k, v in dist_info.items() if v},
@@ -93,11 +98,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         seen.add(basename)
         package_info = _make_info(filename)
+
+        metadata_data = package_info.pop("_metadata")
+
         new_packages.append(package_info)
         shutil.copy(filename, wheels_dir)
 
-        with open(f"{wheels_dir}/{basename}.metadata", "w") as f:
-            f.write(package_info["core_metadata"])
+        with open(f"{wheels_dir}/{basename}.metadata", "wb") as f:
+            f.write(metadata_data)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         prev_json = os.path.join(tmpdir, "previous.json")

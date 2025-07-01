@@ -31,7 +31,7 @@ def test_make_info_empty_wheel_metadata(tmp_path):
     assert ret == {
         "filename": "a-1-py3-none-any.whl",
         "hash": "sha256=64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527",
-        "core_metadata": "sha256=64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527",
+        "core_metadata": "sha256=d4528dc2d072c0e6d65addae8b5700fd29253b9eb9a9214aba539447d6f29fae",
         "upload_timestamp": mock.ANY,
         "uploaded_by": re_assert.Matches(r"^git@[a-f0-9]{7}"),
     }
@@ -58,7 +58,7 @@ def test_make_info_full_wheel_metadata(tmp_path):
             "jsonschema",
             "packaging (==21.3) ; extra = 'p'",
         ],
-        "core_metadata": "sha256=4e6da08b56614db68d4139aca043731c1fed51496ef168b5be2c67737dfe9f9a",
+        "core_metadata": "sha256=a015186125a83e6667547b156f8c6813e72fbab48c4ae635ac3c3a5f1d86aa9f",
         "requires_python": ">= 3.7, != 3.7.0",
         "upload_timestamp": mock.ANY,
         "uploaded_by": re_assert.Matches(r"^git@[a-f0-9]{7}"),
@@ -86,17 +86,18 @@ def test_main_new_package(tmp_path):
     assert dest.joinpath("packages.json").exists()
     assert dest.joinpath(f"wheels/{wheel_name}").exists()
 
-    sha = "64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527"
+    wheel_sha = "64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527"
+    metadata_sha = "d4528dc2d072c0e6d65addae8b5700fd29253b9eb9a9214aba539447d6f29fae"
 
     with open(dest.joinpath("simple/a/index.html")) as f:
         index_html = re.sub(r"\s+", " ", f.read())
         assert (
-            f'<a href="http://example.com/wheels/{wheel_name}#sha256={sha}" data-core-metadata="sha256={sha}" >a-1-py3-none-any.whl</a>'
+            f'<a href="http://example.com/wheels/{wheel_name}#sha256={wheel_sha}" data-core-metadata="sha256={metadata_sha}" >a-1-py3-none-any.whl</a>'
             in index_html
         )
 
     with open(dest.joinpath(f"wheels/{wheel_name}.metadata")) as f:
-        assert f.read() == f"sha256={sha}"
+        assert f.read() == "Name: a\nVersion: 1\n"
 
 
 def test_main_multiple_provide_same_package_first_wins(tmp_path):
