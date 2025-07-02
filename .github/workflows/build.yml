@@ -52,7 +52,7 @@ jobs:
 
   collect-and-deploy:
     needs: [linux, macos]
-    if: github.event_name != 'pull_request'
+#    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -66,9 +66,14 @@ jobs:
     - uses: actions/download-artifact@v4
       with:
         path: dist
-    - run: python3 -um make_index --pypi-url https://pypi.devinfra.sentry.io --dest index
-    - uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
-      with:
-        workload_identity_provider: projects/868781662168/locations/global/workloadIdentityPools/prod-github/providers/github-oidc-pool
-        service_account: gha-pypi@sac-prod-sa.iam.gserviceaccount.com
-    - run: python3 -uS bin/upload-artifacts
+    - run: python3 -um make_index --rebuild --pypi-url https://pypi.devinfra.sentry.io --dest index
+    - run: |
+        cat index/simple/dumb-pypi/index.html
+        tree index/wheels
+        cat index/wheels/dumb_pypi-1.15.0-py2.py3-none-any.whl.metadata
+
+    # - uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
+    #   with:
+    #     workload_identity_provider: projects/868781662168/locations/global/workloadIdentityPools/prod-github/providers/github-oidc-pool
+    #     service_account: gha-pypi@sac-prod-sa.iam.gserviceaccount.com
+    # - run: python3 -uS bin/upload-artifacts
