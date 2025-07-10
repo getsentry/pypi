@@ -32,7 +32,6 @@ def test_make_info_empty_wheel_metadata(tmp_path):
         "filename": "a-1-py3-none-any.whl",
         "hash": "sha256=64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527",
         "core_metadata": "sha256=d4528dc2d072c0e6d65addae8b5700fd29253b9eb9a9214aba539447d6f29fae",
-        "_metadata": b"Name: a\nVersion: 1\n",
         "upload_timestamp": mock.ANY,
         "uploaded_by": re_assert.Matches(r"^git@[a-f0-9]{7}"),
     }
@@ -60,9 +59,6 @@ def test_make_info_full_wheel_metadata(tmp_path):
             "packaging (==21.3) ; extra = 'p'",
         ],
         "core_metadata": "sha256=a015186125a83e6667547b156f8c6813e72fbab48c4ae635ac3c3a5f1d86aa9f",
-        "_metadata": b"Name: a\nVersion: 1\nRequires-Python: >= 3.7, != 3.7.0\nRequire"
-        b"s-Dist: cfgv (>=1)\nRequires-Dist: jsonschema\nRequires-Dist: "
-        b"packaging (==21.3) ; extra = 'p'\n",
         "requires_python": ">= 3.7, != 3.7.0",
         "upload_timestamp": mock.ANY,
         "uploaded_by": re_assert.Matches(r"^git@[a-f0-9]{7}"),
@@ -88,6 +84,23 @@ def test_main_new_package(tmp_path):
     # just some smoke tests about the output
     assert dest.joinpath("packages.json").exists()
     assert dest.joinpath("wheels/a-1-py3-none-any.whl").exists()
+
+
+def test_main_core_metadata(tmp_path):
+    dist = tmp_path.joinpath("dist")
+    dist.mkdir()
+    make_wheel(dist.joinpath("a-1-py3-none-any.whl"), ())
+    dest = tmp_path.joinpath("dest")
+
+    bio = io.BytesIO(b"")
+    with mock.patch.object(urllib.request, "urlopen", return_value=bio):
+        assert not make_index.main(
+            (
+                f"--dist={dist}",
+                f"--dest={dest}",
+                "--pypi-url=http://example.com",
+            )
+        )
 
     wheel_sha = "64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527"
     metadata_sha = "d4528dc2d072c0e6d65addae8b5700fd29253b9eb9a9214aba539447d6f29fae"
