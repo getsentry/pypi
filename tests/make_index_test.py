@@ -72,8 +72,7 @@ def test_make_info_full_wheel_metadata(tmp_path):
 def test_main_new_package(tmp_path):
     dist = tmp_path.joinpath("dist")
     dist.mkdir()
-    wheel_name = "a-1-py3-none-any.whl"
-    make_wheel(dist.joinpath(wheel_name), ())
+    make_wheel(dist.joinpath("a-1-py3-none-any.whl"), ())
     dest = tmp_path.joinpath("dest")
 
     bio = io.BytesIO(b"")
@@ -88,7 +87,7 @@ def test_main_new_package(tmp_path):
 
     # just some smoke tests about the output
     assert dest.joinpath("packages.json").exists()
-    assert dest.joinpath(f"wheels/{wheel_name}").exists()
+    assert dest.joinpath("wheels/a-1-py3-none-any.whl").exists()
 
     wheel_sha = "64f7f4664408d711c17ad28c1d3ba7dd155501e67c8632fafc8a525ba3ebc527"
     metadata_sha = "d4528dc2d072c0e6d65addae8b5700fd29253b9eb9a9214aba539447d6f29fae"
@@ -96,11 +95,11 @@ def test_main_new_package(tmp_path):
     with open(dest.joinpath("simple/a/index.html")) as f:
         index_html = re.sub(r"\s+", " ", f.read())
         assert (
-            f'<a href="http://example.com/wheels/{wheel_name}#sha256={wheel_sha}" data-core-metadata="sha256={metadata_sha}" >a-1-py3-none-any.whl</a>'
+            f'<a href="http://example.com/wheels/a-1-py3-none-any.whl#sha256={wheel_sha}" data-core-metadata="sha256={metadata_sha}" >a-1-py3-none-any.whl</a>'
             in index_html
         )
 
-    with open(dest.joinpath(f"wheels/{wheel_name}.metadata")) as f:
+    with open(dest.joinpath("wheels/a-1-py3-none-any.whl.metadata")) as f:
         assert f.read() == "Name: a\nVersion: 1\n"
 
 
