@@ -68,12 +68,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--dist", default="dist")
     parser.add_argument("--pypi-url", required=True)
     parser.add_argument("--dest", required=True)
-    parser.add_argument("--rebuild", action="store_true")
     args = parser.parse_args(argv)
 
     url = urllib.parse.urljoin(args.pypi_url, "packages.json")
     packages = [json.loads(line) for line in urllib.request.urlopen(url)]
-    on_pypi = {package["filename"] for package in packages} if not args.rebuild else {}
+    on_pypi = {package["filename"] for package in packages}
 
     shutil.rmtree(args.dest, ignore_errors=True)
     os.makedirs(args.dest, exist_ok=True)
@@ -119,21 +118,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             for package in itertools.chain(packages, new_packages):
                 f.write(f"{json.dumps(package)}\n")
 
-        pargs = [
-            sys.executable,
-            "-mdumb_pypi.main",
-            f"--package-list-json={packages_json}",
-            f"--output-dir={args.dest}",
-            f'--packages-url={urllib.parse.urljoin(args.pypi_url, "wheels")}',
-            "--title=sentry pypi",
-            "--logo=https://avatars.githubusercontent.com/u/1396951?s=24",
-            "--logo-width=36",
-        ]
-
-        if not args.rebuild:
-            pargs.append(f"--previous-package-list-json={prev_json}")
-
-        subprocess.check_call(pargs)
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-mdumb_pypi.main",
+                f"--package-list-json={packages_json}",
+                f"--previous-package-list-json={prev_json}",
+                f"--output-dir={args.dest}",
+                f'--packages-url={urllib.parse.urljoin(args.pypi_url, "wheels")}',
+                "--title=sentry pypi",
+                "--logo=https://avatars.githubusercontent.com/u/1396951?s=24",
+                "--logo-width=36",
+            ]
+        )
 
     # for now we don't utilize the json api
     shutil.rmtree(os.path.join(args.dest, "pypi"), ignore_errors=True)
