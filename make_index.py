@@ -99,9 +99,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             continue
 
         seen.add(basename)
-        package_info = _make_info(filename)
-
-        new_packages.append(package_info)
+        new_packages.append(_make_info(filename))
         shutil.copy(filename, wheels_dir)
 
         with open(f"{wheels_dir}/{basename}.metadata", "wb") as f:
@@ -119,17 +117,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f.write(f"{json.dumps(package)}\n")
 
         subprocess.check_call(
-            [
+            (
                 sys.executable,
                 "-mdumb_pypi.main",
-                f"--package-list-json={packages_json}",
                 f"--previous-package-list-json={prev_json}",
+                f"--package-list-json={packages_json}",
                 f"--output-dir={args.dest}",
                 f'--packages-url={urllib.parse.urljoin(args.pypi_url, "wheels")}',
                 "--title=sentry pypi",
                 "--logo=https://avatars.githubusercontent.com/u/1396951?s=24",
                 "--logo-width=36",
-            ]
+            )
         )
 
     # for now we don't utilize the json api
