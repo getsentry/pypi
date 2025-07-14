@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from __future__ import annotations
 
 import argparse
@@ -34,11 +35,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     new_packages = []
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        for package in packages[:2]:
+        os.makedirs(f"{tmpdir}/metadata")
+        for package in packages:
+            basename = os.path.basename(package["filename"])
+
             if package.get("core_metadata"):
+                print(f"skipping: core metadata already present for {basename}")
                 continue
 
-            basename = os.path.basename(package["filename"])
             url = f"{args.pypi_url}/wheels/{basename}"
             fp = f"{tmpdir}/{basename}"
 
@@ -51,7 +55,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 metadata_bytes = _get_metadata_bytes(fp)
                 metadata_sha256 = hashlib.sha256(metadata_bytes).hexdigest()
 
-                os.makedirs(f"{tmpdir}/metadata")
                 with open(f"{tmpdir}/metadata/{basename}.metadata", "wb") as f:
                     f.write(metadata_bytes)
             except Exception as e:
@@ -59,6 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 continue
 
             new_packages[-1]["core_metadata"] = f"sha256={metadata_sha256}"
+            print(f"core metadata fetched for {basename}")
 
         packages_json = os.path.join(tmpdir, "packages.json")
         with open(packages_json, "w") as f:
