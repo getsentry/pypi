@@ -21,8 +21,7 @@ def _get_metadata_bytes(filename: str) -> bytes:
             if name.endswith(".dist-info/METADATA") and name.count("/") == 1
         )
         with zipf.open(metadata) as f:
-            metadata_bytes = f.read()
-            return metadata_bytes
+            return f.read()
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -32,7 +31,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     url = urllib.parse.urljoin(args.pypi_url, "packages.json")
     packages = [json.loads(line) for line in urllib.request.urlopen(url)]
-    new_packages = []
 
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(f"{tmpdir}/metadata")
@@ -45,8 +43,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             url = f"{args.pypi_url}/wheels/{basename}"
             fp = f"{tmpdir}/{basename}"
-
-            new_packages.append(package)
 
             try:
                 with urllib.request.urlopen(url) as resp, open(fp, "wb") as f:
@@ -61,12 +57,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"failed to get/write metadata for {basename}:\n\n{e}\n")
                 continue
 
-            new_packages[-1]["core_metadata"] = f"sha256={metadata_sha256}"
+            package["core_metadata"] = f"sha256={metadata_sha256}"
             print(f"core metadata fetched for {basename}")
 
         packages_json = os.path.join(tmpdir, "packages.json")
         with open(packages_json, "w") as f:
-            for package in new_packages:
+            for package in packages:
                 f.write(f"{json.dumps(package)}\n")
 
         subprocess.check_call(
@@ -78,7 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "--cache-control",
                 "public, max-age=3600",
                 f"{tmpdir}/metadata/*",
-                "gs://pypi.devinfra.sentry.io",
+                "gs://pypi.devinfra.sentry.io/wheels/",
             )
         )
         subprocess.check_call(
