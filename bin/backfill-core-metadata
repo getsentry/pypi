@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 from collections.abc import Sequence
+from urllib.error import HTTPError
 
 
 def _get_metadata_bytes(filename: str) -> bytes:
@@ -47,15 +48,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             try:
                 with urllib.request.urlopen(url) as resp, open(fp, "wb") as f:
                     f.write(resp.read())
-
-                metadata_bytes = _get_metadata_bytes(fp)
-                metadata_sha256 = hashlib.sha256(metadata_bytes).hexdigest()
-
-                with open(f"{tmpdir}/metadata/{basename}.metadata", "wb") as f:
-                    f.write(metadata_bytes)
-            except Exception as e:
-                print(f"failed to get/write metadata for {basename}:\n\n{e}\n")
+            except HTTPError as e:
+                print(f"failed to get metadata for {basename}:\n\n{e}\n")
                 continue
+
+            metadata_bytes = _get_metadata_bytes(fp)
+            metadata_sha256 = hashlib.sha256(metadata_bytes).hexdigest()
+
+            with open(f"{tmpdir}/metadata/{basename}.metadata", "wb") as f:
+                f.write(metadata_bytes)
 
             package["core_metadata"] = f"sha256={metadata_sha256}"
             print(f"core metadata fetched for {basename}")
