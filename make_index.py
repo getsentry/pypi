@@ -118,7 +118,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             (
                 sys.executable,
                 "-mdumb_pypi.main",
-                # f"--previous-package-list-json={prev_json}",
+                f"--previous-package-list-json={prev_json}",
                 f"--package-list-json={packages_json}",
                 f"--output-dir={args.dest}",
                 f'--packages-url={urllib.parse.urljoin(args.pypi_url, "wheels")}',
