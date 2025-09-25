@@ -11,6 +11,7 @@ import zipfile
 from collections.abc import Mapping
 from typing import NamedTuple
 
+import packaging.tags
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
@@ -53,8 +54,11 @@ def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
             ret.add(_py_exe(*_parse_cp_tag(tag.interpreter)))
         elif tag.interpreter == "py2":
             continue
-        elif tag.interpreter == "py3":
-            ret.update(_py_exe(*py) for py in PYTHONS)
+        elif tag.interpreter.startswith("py3"):
+            for py in PYTHONS:
+                if tag not in packaging.tags.compatible_tags(py):
+                    raise AssertionError(f"{tag} is not compatible with python {py}")
+                ret.update(_py_exe(*py) for py in PYTHONS)
         else:
             raise AssertionError(f"unexpected tag: {tag}")
 
