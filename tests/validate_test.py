@@ -70,11 +70,12 @@ def test_pythons_to_check_specific_cpython_tag():
 
 
 def test_pythons_to_check_multi_platform_with_musllinux():
-    """Test that wheels with both manylinux and musllinux tags are accepted."""
-    # Simulates a wheel like: py3-none-manylinux_2_17_x86_64.musllinux_1_2_x86_64
-    tags = parse_tag("py3-none-manylinux_2_17_x86_64") | parse_tag("py3-none-musllinux_1_2_x86_64")
+    """Test that wheels with both compatible and incompatible platform tags are accepted."""
+    # Simulates a wheel like: py3-none-any.musllinux_1_2_x86_64
+    # The py3-none-any tag is always compatible, while musllinux might not be on all systems
+    tags = parse_tag("py3-none-any") | parse_tag("py3-none-musllinux_1_2_x86_64")
     ret = validate._pythons_to_check(tags)
-    # Should succeed because at least one tag (manylinux) is compatible
+    # Should succeed because at least one tag (py3-none-any) is compatible
     assert ret == ("python3.11", "python3.12", "python3.13")
 
 
