@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from typing import NamedTuple
 
 import packaging.tags
+from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
@@ -47,7 +48,7 @@ def _py_exe(major: int, minor: int) -> str:
 
 
 def _pythons_to_check(
-    tags: frozenset[Tag], package: Package | None = None
+    tags: frozenset[Tag], python_versions: SpecifierSet | None = None
 ) -> tuple[str, ...]:
     tag_compatible_pythons: set[str] = set()
     for tag in tags:
@@ -71,18 +72,18 @@ def _pythons_to_check(
     if not tag_compatible_pythons:
         raise AssertionError(f"no interpreters found for {tags}")
 
-    if not package:
+    if not python_versions:
         return tuple(sorted(tag_compatible_pythons))
 
     package_compatible_pythons: set[str] = set()
     for python_exe in tag_compatible_pythons:
         py_version_str = python_exe.replace("python", "")
-        if py_version_str in package.python_versions:
+        if py_version_str in python_versions:
             package_compatible_pythons.add(python_exe)
 
     if not package_compatible_pythons:
         raise AssertionError(
-            f"no interpreters found for {tags} after applying package constraints {package.python_versions}. "
+            f"no interpreters found for {tags} after applying package constraints {python_versions}. "
             f"Wheel supports: {sorted(tag_compatible_pythons)}"
         )
 
@@ -189,7 +190,7 @@ def main() -> int:
         name, version, _, wheel_tags = parse_wheel_filename(filename)
         package = packages[(name, version)]
         info = validate_infos[(name, version)]
-        for python in _pythons_to_check(wheel_tags, package):
+        for python in _pythons_to_check(wheel_tags, package.python_versions):
             _validate(
                 python=python,
                 filename=os.path.join(args.dist, filename),
