@@ -46,7 +46,9 @@ def _py_exe(major: int, minor: int) -> str:
     return f"python{major}.{minor}"
 
 
-def _pythons_to_check(tags: frozenset[Tag], package: Package) -> tuple[str, ...]:
+def _pythons_to_check(
+    tags: frozenset[Tag], package: Package | None = None
+) -> tuple[str, ...]:
     tag_compatible_pythons: set[str] = set()
     for tag in tags:
         if tag.abi == "abi3" and tag.interpreter.startswith("cp"):
@@ -68,6 +70,9 @@ def _pythons_to_check(tags: frozenset[Tag], package: Package) -> tuple[str, ...]
 
     if not tag_compatible_pythons:
         raise AssertionError(f"no interpreters found for {tags}")
+
+    if not package:
+        return tuple(sorted(tag_compatible_pythons))
 
     package_compatible_pythons: set[str] = set()
     for python_exe in tag_compatible_pythons:
