@@ -69,6 +69,15 @@ def test_pythons_to_check_specific_cpython_tag():
     assert ret == ("python3.11",)
 
 
+def test_pythons_to_check_multi_platform_with_musllinux():
+    """Test that wheels with both manylinux and musllinux tags are accepted."""
+    # Simulates a wheel like: py3-none-manylinux_2_17_x86_64.musllinux_1_2_x86_64
+    tags = parse_tag("py3-none-manylinux_2_17_x86_64") | parse_tag("py3-none-musllinux_1_2_x86_64")
+    ret = validate._pythons_to_check(tags)
+    # Should succeed because at least one tag (manylinux) is compatible
+    assert ret == ("python3.11", "python3.12", "python3.13")
+
+
 def test_top_imports_record(tmp_path):
     whl = tmp_path.joinpath("distlib.whl")
     with zipfile.ZipFile(whl, "w") as zipf:
