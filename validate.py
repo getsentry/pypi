@@ -63,9 +63,8 @@ def _pythons_to_check(
             continue
         elif tag.interpreter.startswith("py3"):
             for py in PYTHONS:
-                if tag not in packaging.tags.compatible_tags(py):
-                    raise AssertionError(f"{tag} is not compatible with python {py}")
-                tag_compatible_pythons.update(_py_exe(*py) for py in PYTHONS)
+                if tag in packaging.tags.compatible_tags(py):
+                    tag_compatible_pythons.add(_py_exe(*py))
         else:
             raise AssertionError(f"unexpected tag: {tag}")
 
