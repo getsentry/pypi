@@ -3,6 +3,7 @@ from __future__ import annotations
 import zipfile
 
 import pytest
+from packaging.specifiers import SpecifierSet
 from packaging.tags import parse_tag
 
 import validate
@@ -97,3 +98,10 @@ def test_top_imports_record(tmp_path):
 
     expected = ["distlib", "_distlib_backend", "distlib_top"]
     assert validate._top_imports(str(whl)) == expected
+
+
+def test_pythons_to_check_with_python_versions_constraint():
+    tag = parse_tag("py2.py3-none-any")
+    constraint = SpecifierSet(">=3.12")
+    ret = validate._pythons_to_check(tag, constraint)
+    assert ret == ("python3.12", "python3.13")
