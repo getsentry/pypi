@@ -10,6 +10,7 @@ platforms and achitectures required for sentry development.
 
 ```bash
 devenv sync
+direnv allow
 ```
 
 to run tests: `tox`
