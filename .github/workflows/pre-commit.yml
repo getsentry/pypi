@@ -9,7 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+
+    - uses: astral-sh/setup-uv@884ad927a57e558e7a70b92f2bccf9198a4be546 # v6
       with:
-        python-version: '3.11'
+        version: '0.8.2'
+        # we just cache the venv-dir directly in action-setup-venv
+        enable-cache: false
+
+    - uses: getsentry/action-setup-venv@v3.0.0
+      with:
+        cache-dependency-path: uv.lock
+        install-cmd: uv sync --frozen --active
+
     - uses: pre-commit/action@v3.0.0

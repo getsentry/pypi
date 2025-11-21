@@ -12,28 +12,42 @@ repos:
     hooks:
     -   id: reorder-python-imports
         args: [--py311-plus, --add-import, 'from __future__ import annotations']
--   repo: https://github.com/psf/black
-    rev: 24.1.1
-    hooks:
-    -   id: black
--   repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.0
-    hooks:
-    -   id: pyupgrade
-        args: [--py311-plus]
--   repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
-    hooks:
-    -   id: flake8
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-    -   id: mypy
 -   repo: local
     hooks:
     -   id: format-packages-ini
         name: format packages.ini
         language: python
-        entry: python -m format_ini
+        entry: .venv/bin/python -m format_ini
         files: ^packages\.ini$
-        additional_dependencies: [packaging==21.3]
+
+    # Configuration for black exists in pyproject.toml,
+    # but we let pre-commit take care of the file filtering.
+    - id: black
+      name: black
+      entry: .venv/bin/black
+      language: system
+      types_or: [python, pyi]
+      require_serial: true
+
+    # Configuration for flake8 exists in setup.cfg,
+    # but we let pre-commit take care of the file filtering.
+    - id: flake8
+      name: flake8
+      entry: .venv/bin/flake8
+      language: system
+      types: [python]
+      require_serial: true
+
+    - id: pyupgrade
+      name: pyupgrade
+      entry: .venv/bin/pyupgrade
+      language: system
+      types: [python]
+      args: [--py311-plus]
+
+    - id: mypy
+      name: mypy
+      entry: .venv/bin/mypy
+      language: system
+      types: [python]
+      require_serial: true

@@ -146,7 +146,7 @@ def _brew_paths(*pkgs: str) -> list[str]:
 
 
 @contextlib.contextmanager
-def _brew_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
+def _brew_install(packages: tuple[str, ...]) -> Generator[None]:
     installed_before = _darwin_installed_packages()
 
     subprocess.check_call(
@@ -180,7 +180,7 @@ def _brew_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def _darwin_install(package: Package) -> Generator[None, None, None]:
+def _darwin_install(package: Package) -> Generator[None]:
     with contextlib.ExitStack() as ctx:
         if package.brew_requires:
             ctx.enter_context(_brew_install(package.brew_requires))
@@ -252,7 +252,7 @@ def _linux_installed_packages() -> frozenset[str]:
 
 
 @contextlib.contextmanager
-def _apt_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
+def _apt_install(packages: tuple[str, ...]) -> Generator[None]:
     _apt_update()
 
     installed_before = _linux_installed_packages()
@@ -280,7 +280,7 @@ def _apt_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def _linux_install(package: Package) -> Generator[None, None, None]:
+def _linux_install(package: Package) -> Generator[None]:
     with contextlib.ExitStack() as ctx:
         if package.apt_requires:
             ctx.enter_context(_apt_install(package.apt_requires))
@@ -446,7 +446,7 @@ def _join_env(
 @contextlib.contextmanager
 def _prebuild(
     package: Package, tmpdir: str, *, env: MutableMapping[str, str] | None = None
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     if env is None:
         env = os.environ
 

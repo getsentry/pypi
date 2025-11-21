@@ -20,4 +20,7 @@ def main(context: dict[str, str]) -> int:
     print("syncing .venv ...")
     proc.run(("uv", "sync", "--frozen", "--quiet"))
 
+    print("installing pre-commit hooks ...")
+    proc.run((f"{reporoot}/.venv/bin/pre-commit", "install", "--install-hooks"))
+
     return 0
