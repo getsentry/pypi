@@ -10,6 +10,7 @@ version = "0.0.0"
 # Tox remains the most ergonomic solution to test on multiple pythons.
 dev = [
     "packaging==21.3",
+    "pre-commit==4.2.0",
     "sentry-devenv>=1.25.0",
     "tox==3.25.1",
 ]
