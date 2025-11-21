@@ -1,0 +1,22 @@
+[project]
+name = "pypi"
+version = "0.0.0"
+
+[dependency-groups]
+# Currently we're just doing this much to get `devenv sync` to be able to
+# run tox and packaging for local python -m add_pkg.
+# Not sure it would be worth the effort right now to move everything to pure pytest
+# and run pytest on 3 different python versions in ci by swapping out .python-version.
+# Tox remains the most ergonomic solution to test on multiple pythons.
+dev = [
+    "packaging==21.3",
+    "sentry-devenv>=1.25.0",
+    "tox==3.25.1",
+]
+
+[tool.uv]
+environments = ["sys_platform == 'darwin' or sys_platform == 'linux'"]
+
+[[tool.uv.index]]
+url = "https://pypi.devinfra.sentry.io/simple"
+default = true
