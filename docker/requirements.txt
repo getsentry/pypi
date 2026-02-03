@@ -20,5 +20,5 @@ virtualenv==20.36.1
 wheel==0.46.2
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==25.3
+pip==26.0
 setuptools==78.1.1
