@@ -12,9 +12,12 @@ from collections.abc import Mapping
 from typing import NamedTuple
 
 import packaging.tags
+from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
+
+from build import Package
 
 PYTHONS = ((3, 11), (3, 12), (3, 13))
 DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
@@ -44,27 +47,47 @@ def _py_exe(major: int, minor: int) -> str:
     return f"python{major}.{minor}"
 
 
-def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
-    ret: set[str] = set()
+def _pythons_to_check(
+    tags: frozenset[Tag], python_versions: SpecifierSet | None = None
+) -> tuple[str, ...]:
+    tag_compatible_pythons: set[str] = set()
     for tag in tags:
         if tag.abi == "abi3" and tag.interpreter.startswith("cp"):
             min_py = _parse_cp_tag(tag.interpreter)
-            ret.update(_py_exe(*py) for py in PYTHONS if py >= min_py)
+            tag_compatible_pythons.update(
+                _py_exe(*py) for py in PYTHONS if py >= min_py
+            )
         elif tag.interpreter.startswith("cp"):
-            ret.add(_py_exe(*_parse_cp_tag(tag.interpreter)))
+            tag_compatible_pythons.add(_py_exe(*_parse_cp_tag(tag.interpreter)))
         elif tag.interpreter == "py2":
             continue
         elif tag.interpreter.startswith("py3"):
             for py in PYTHONS:
-                if tag in packaging.tags.compatible_tags(py):
-                    ret.add(_py_exe(*py))
+                if tag not in packaging.tags.compatible_tags(py):
+                    raise AssertionError(f"{tag} is not compatible with python {py}")
+                tag_compatible_pythons.add(_py_exe(*py))
         else:
             raise AssertionError(f"unexpected tag: {tag}")
 
-    if not ret:
+    if not tag_compatible_pythons:
         raise AssertionError(f"no interpreters found for {tags}")
-    else:
-        return tuple(sorted(ret))
+
+    if not python_versions:
+        return tuple(sorted(tag_compatible_pythons))
+
+    package_compatible_pythons: set[str] = set()
+    for python_exe in tag_compatible_pythons:
+        py_version_str = python_exe.replace("python", "")
+        if py_version_str in python_versions:
+            package_compatible_pythons.add(python_exe)
+
+    if not package_compatible_pythons:
+        raise AssertionError(
+            f"no interpreters found for {tags} after applying package constraints {python_versions}. "
+            f"Wheel supports: {sorted(tag_compatible_pythons)}"
+        )
+
+    return tuple(sorted(package_compatible_pythons))
 
 
 def _top_imports(whl: str) -> list[str]:
@@ -156,14 +179,18 @@ def main() -> int:
         raise SystemExit(f"{args.packages_ini}: not found")
 
     packages = {}
+    validate_infos = {}
     for k in cfg.sections():
         pkg, _, version_s = k.partition("==")
-        packages[(pkg, Version(version_s))] = Info.from_dct(cfg[k])
+        key = (pkg, Version(version_s))
+        packages[key] = Package.make(k, cfg[k])
+        validate_infos[key] = Info.from_dct(cfg[k])
 
     for filename in sorted(os.listdir(args.dist)):
         name, version, _, wheel_tags = parse_wheel_filename(filename)
-        info = packages[(name, version)]
-        for python in _pythons_to_check(wheel_tags):
+        package = packages[(name, version)]
+        info = validate_infos[(name, version)]
+        for python in _pythons_to_check(wheel_tags, package.python_versions):
             _validate(
                 python=python,
                 filename=os.path.join(args.dist, filename),
