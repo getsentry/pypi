@@ -49,6 +49,7 @@ def main() -> int:
         subprocess.check_call(
             (
                 "cmake",
+                "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
                 f"-DCMAKE_INSTALL_PREFIX={args.prefix}",
                 "-DCRC32C_BUILD_TESTS=no",
                 "-DCRC32C_BUILD_BENCHMARKS=no",
