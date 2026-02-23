@@ -52,6 +52,8 @@ ENV \
     PIP_NO_CACHE_DIR=1 \
     PIP_NO_WARN_ABOUT_ROOT_USER=0
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 COPY install-pythons /tmp/install-pythons
 RUN /tmp/install-pythons
 
