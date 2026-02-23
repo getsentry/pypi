@@ -4,23 +4,9 @@ from __future__ import annotations
 import argparse
 import glob
 import os
-import platform
-import re
 import subprocess
 
 VERSIONS = ("3.11.14", "3.12.12", "3.13.12", "3.14.3")
-ARCH_MAP = {"arm64": "aarch64"}
-ARCH = ARCH_MAP.get(platform.machine(), platform.machine())
-
-CLANG_PP = re.compile(r"\bclang\+\+")
-CLANG = re.compile(r"\bclang\b")
-
-
-def _must_sub(reg: re.Pattern[str], new: str, s: str) -> str:
-    after = reg.sub(new, s)
-    if after == s:
-        raise AssertionError(f"expected replacement by {reg} => {new}!")
-    return after
 
 
 def main() -> int:
@@ -51,12 +37,17 @@ def main() -> int:
         os.symlink(os.path.basename(installed_dir), link)
 
         py = os.path.join(link, "bin", "python3")
-        subprocess.check_call((py, "-mensurepip"))
         subprocess.check_call(
             (
-                *(py, "-mpip", "install"),
-                *("pip==25.0.1", "setuptools==75.8.0", "wheel==0.45.1"),
-            )
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                py,
+                "pip==25.0.1",
+                "setuptools==75.8.0",
+                "wheel==0.45.1",
+            ),
         )
         subprocess.check_call((py, "--version", "--version"))
 
