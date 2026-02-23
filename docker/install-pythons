@@ -7,7 +7,6 @@ import os
 import platform
 import re
 import subprocess
-import sys
 
 VERSIONS = ("3.11.14", "3.12.12", "3.13.12", "3.14.3")
 ARCH_MAP = {"arm64": "aarch64"}
@@ -50,20 +49,6 @@ def main() -> int:
         # symlink cpXY-cpXY -> the uv-installed directory for PATH compat
         link = os.path.join(args.dest, f"cp{major}{minor}-cp{major}{minor}")
         os.symlink(os.path.basename(installed_dir), link)
-
-        # https://github.com/indygreg/python-build-standalone/issues/209
-        if sys.platform == "linux":
-            for fname in (
-                f"{installed_dir}/lib/python{major}.{minor}/config-{major}.{minor}-{ARCH}-linux-gnu/Makefile",
-                f"{installed_dir}/lib/python{major}.{minor}/_sysconfigdata__linux_{ARCH}-linux-gnu.py",
-            ):
-                print(f"XXX: fixing up build metadata in {fname}")
-                with open(fname) as f:
-                    contents = f.read()
-                contents = _must_sub(CLANG_PP, "c++", contents)
-                contents = _must_sub(CLANG, "cc", contents)
-                with open(fname, "w") as f:
-                    f.write(contents)
 
         py = os.path.join(link, "bin", "python3")
         subprocess.check_call((py, "-mensurepip"))
