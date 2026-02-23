@@ -2,21 +2,43 @@ name: build
 on:
   pull_request:
   push:
-    branches: [main, test-me-*]
+    branches: [main]
 
 concurrency:
   # serialize runs on the default branch
   group: ${{ github.event_name == 'push' && github.workflow || github.sha }}${{ github.workflow }}
 
 jobs:
-  linux:
+  image:
     strategy:
       matrix:
         include:
         - {arch: amd64, os: ubuntu-latest}
         - {arch: arm64, os: ubuntu-24.04-arm}
     runs-on: ${{ matrix.os }}
-    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v3
+    - run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
+    - run: |
+        docker buildx build \
+            --cache-from ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
+            --cache-to type=inline \
+            --platform linux/${{ matrix.arch }} \
+            --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }} \
+            ${{ github.ref == 'refs/heads/main' && format('--tag ghcr.io/getsentry/pypi-manylinux-{0}-ci:latest', matrix.arch) || '' }} \
+            --push \
+            docker
+  linux:
+    needs: [image]
+    strategy:
+      matrix:
+        include:
+        - {arch: amd64, os: ubuntu-latest}
+        - {arch: arm64, os: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.os }}
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }}
     steps:
     - uses: actions/checkout@v3
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io

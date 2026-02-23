@@ -2,37 +2,14 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
-import os.path
+import glob
+import os
 import platform
 import re
-import secrets
+import shutil
 import subprocess
 import sys
-import tempfile
 
-RELEASE = (
-    "https://github.com/indygreg/python-build-standalone/releases/download/20260211/"
-)
-# curl --silent --location https://github.com/indygreg/python-build-standalone/releases/download/20260211/SHA256SUMS | grep -E '(aarch64-apple-darwin-pgo\+lto-full|x86_64-apple-darwin-pgo\+lto-full|aarch64-unknown-linux-gnu-pgo\+lto-full|x86_64-unknown-linux-gnu-pgo\+lto-full)' | grep -Ev '(cpython-3\.(8|9|10|15)|freethreaded)'
-CHECKSUMS = """\
-ceda72c76ecfd4294ae3fdf275202a3cfe912cf1dc7076c9526171aaaedbd3e3  cpython-3.11.14+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
-355c4a10233a2e3ac1e511e7cf052116404e197bc70fcc22b67aba635e209808  cpython-3.11.14+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
-898995bc172df26f5e0ce9bac316254756094466b9d472234e62e4045e1ddbf6  cpython-3.11.14+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
-9dd3129d78fc42a63690b09f9f48b27d35b0fbe7b580fd1cd85bb554c82671b6  cpython-3.11.14+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
-bf70a8ba4d44eb243af9dc3485656e0ce3757588eefe27e1801b36ff9773805a  cpython-3.12.12+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
-48cccc8970f32586b60125199c955da870c5b9c52c05afb2bce28714eeb17cc6  cpython-3.12.12+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
-14fe4f2213f9b89d5649b2c50636be20393ec0092960d1acd11f7c84a4e1b2e9  cpython-3.12.12+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
-75428635145d4eb8de86cff5d00a823009a21fe8c173c7899959d0f41f73ad4a  cpython-3.12.12+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
-3baef69715ffc554a7f173e9419cfb75ddf25b7cae91ab141032843d53fa34c4  cpython-3.13.12+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
-0ad848cab9031fc80c64442698f6eff112d81d45eaf53f49ece6ecbfc97f6ea6  cpython-3.13.12+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
-8ad36a0b44b03f2c236d05135600d626ae73245eae0361a17ddabb9e7163e50b  cpython-3.13.12+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
-2483028342db1e31a8a4004a859a856fade2563bae97f18812a2d27a123773e6  cpython-3.13.12+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
-d016c5a16c6a246f56cf2fae2a4150a339311a30787347ff1c1e063295c82401  cpython-3.14.3+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
-13a08dca6f29df3701f1846184db78499d23014f6d5a70fa6c2c1f29baee350a  cpython-3.14.3+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
-3e55c3d0914e7e4f2e7a135c80077a0ac635de9dcfa0c08f2544fc2165e264a4  cpython-3.14.3+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
-96c6684fffd6da9d219400b2e3c020d9bc2c838cbb4ac202e2dd652dda3d1914  cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
-"""
 VERSIONS = ("3.11.14", "3.12.12", "3.13.12", "3.14.3")
 ARCH_MAP = {"arm64": "aarch64"}
 ARCH = ARCH_MAP.get(platform.machine(), platform.machine())
@@ -48,17 +25,6 @@ def _must_sub(reg: re.Pattern[str], new: str, s: str) -> str:
     return after
 
 
-def _checksum_url(version: str) -> tuple[str, str]:
-    for line in CHECKSUMS.splitlines():
-        sha256, filename = line.split()
-        _, f_version_release, arch, _, plat, *_ = filename.split("-")
-        f_version, _ = f_version_release.split("+")
-        if version == f_version and sys.platform == plat and ARCH == arch:
-            return (sha256, f"{RELEASE}/{filename}")
-    else:
-        raise NotImplementedError(version, sys.platform, platform.machine())
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dest", default="/opt/python")
@@ -66,57 +32,52 @@ def main() -> int:
 
     os.makedirs(args.dest, exist_ok=True)
 
+    if not shutil.which("uv"):
+        subprocess.check_call((sys.executable, "-mpip", "install", "uv"))
+
+    subprocess.check_call(
+        ("uv", "python", "install", *VERSIONS, "--install-dir", args.dest),
+    )
+
     for version in VERSIONS:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            expected, url = _checksum_url(version)
+        major, minor, *_ = version.split(".")
 
-            major, minor, *_ = version.split(".")
-            dest = os.path.join(args.dest, f"cp{major}{minor}-cp{major}{minor}")
-            tgz_dest = os.path.join(tmpdir, "python.tgz")
-
-            curl_cmd = ("curl", "--silent", "--location", "--output", tgz_dest, url)
-            subprocess.check_call(curl_cmd)
-
-            with open(tgz_dest, "rb") as f:
-                sha256 = hashlib.sha256(f.read()).hexdigest()
-            if not secrets.compare_digest(sha256, expected):
-                raise AssertionError(f"checksum mismatch {sha256=} {expected=}")
-
-            os.makedirs(dest, exist_ok=True)
-            tar_cmd = (
-                "tar",
-                "-C",
-                dest,
-                "--strip-components=2",
-                "-xf",
-                tgz_dest,
-                "python/install",
+        # uv installs to e.g. cpython-3.14.3-linux-aarch64-gnu/
+        matches = glob.glob(os.path.join(args.dest, f"cpython-{major}.{minor}.*"))
+        if len(matches) != 1:
+            raise AssertionError(
+                f"expected exactly one match for cpython-{major}.{minor}.*, "
+                f"got {matches}"
             )
-            subprocess.check_call(tar_cmd)
+        installed_dir = matches[0]
 
-            # https://github.com/indygreg/python-build-standalone/issues/209
-            if sys.platform == "linux" and ARCH == "x86_64":
-                for fname in (
-                    f"{dest}/lib/python{major}.{minor}/config-{major}.{minor}-x86_64-linux-gnu/Makefile",
-                    f"{dest}/lib/python{major}.{minor}/_sysconfigdata__linux_x86_64-linux-gnu.py",
-                ):
-                    print(f"XXX: fixing up build metadata in {fname}")
-                    with open(fname) as f:
-                        contents = f.read()
-                    contents = _must_sub(CLANG_PP, "c++", contents)
-                    contents = _must_sub(CLANG, "cc", contents)
-                    with open(fname, "w") as f:
-                        f.write(contents)
+        # symlink cpXY-cpXY -> the uv-installed directory for PATH compat
+        link = os.path.join(args.dest, f"cp{major}{minor}-cp{major}{minor}")
+        os.symlink(os.path.basename(installed_dir), link)
 
-            py = os.path.join(dest, "bin", "python3")
-            subprocess.check_call((py, "-mensurepip"))
-            subprocess.check_call(
-                (
-                    *(py, "-mpip", "install"),
-                    *("pip==25.0.1", "setuptools==75.8.0", "wheel==0.45.1"),
-                )
+        # https://github.com/indygreg/python-build-standalone/issues/209
+        if sys.platform == "linux":
+            for fname in (
+                f"{installed_dir}/lib/python{major}.{minor}/config-{major}.{minor}-{ARCH}-linux-gnu/Makefile",
+                f"{installed_dir}/lib/python{major}.{minor}/_sysconfigdata__linux_{ARCH}-linux-gnu.py",
+            ):
+                print(f"XXX: fixing up build metadata in {fname}")
+                with open(fname) as f:
+                    contents = f.read()
+                contents = _must_sub(CLANG_PP, "c++", contents)
+                contents = _must_sub(CLANG, "cc", contents)
+                with open(fname, "w") as f:
+                    f.write(contents)
+
+        py = os.path.join(link, "bin", "python3")
+        subprocess.check_call((py, "-mensurepip"))
+        subprocess.check_call(
+            (
+                *(py, "-mpip", "install"),
+                *("pip==25.0.1", "setuptools==75.8.0", "wheel==0.45.1"),
             )
-            subprocess.check_call((py, "--version", "--version"))
+        )
+        subprocess.check_call((py, "--version", "--version"))
 
     return 0
 
