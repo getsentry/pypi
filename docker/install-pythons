@@ -12,24 +12,28 @@ import sys
 import tempfile
 
 RELEASE = (
-    "https://github.com/indygreg/python-build-standalone/releases/download/20241016/"
+    "https://github.com/indygreg/python-build-standalone/releases/download/20260211/"
 )
-# curl --silent --location https://github.com/indygreg/python-build-standalone/releases/download/20241016/SHA256SUMS | grep -E '(aarch64-apple-darwin-pgo\+lto-full|x86_64-apple-darwin-pgo\+lto-full|aarch64-unknown-linux-gnu-lto-full|x86_64-unknown-linux-gnu-pgo\+lto-full)' | grep -Ev 'cpython-3\.(8|9|10)'
+# curl --silent --location https://github.com/indygreg/python-build-standalone/releases/download/20260211/SHA256SUMS | grep -E '(aarch64-apple-darwin-pgo\+lto-full|x86_64-apple-darwin-pgo\+lto-full|aarch64-unknown-linux-gnu-pgo\+lto-full|x86_64-unknown-linux-gnu-pgo\+lto-full)' | grep -Ev '(cpython-3\.(8|9|10|15)|freethreaded)'
 CHECKSUMS = """\
-afac902c6498cda4095674344b6defbff4500a3687aea597b3710cd070b62756  cpython-3.11.10+20241016-aarch64-apple-darwin-pgo+lto-full.tar.zst
-4aa77466ca61b0a3263e3bf55be911cc72f30fd33c81d545f13782b1a35daeec  cpython-3.11.10+20241016-aarch64-unknown-linux-gnu-lto-full.tar.zst
-672a3d428359c3edd2155bf9d9939e0f51803fe3c81f1643e021d9970f01fbdd  cpython-3.11.10+20241016-x86_64-apple-darwin-pgo+lto-full.tar.zst
-36498e63788f5a03c0d6249a5df77fbca542bf066eaa6dbb8bbf516194f96e9b  cpython-3.11.10+20241016-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
-3f8bf335c97424d0be262687906b0f50511f22fede8b9be77363faa57c4b8e7f  cpython-3.12.7+20241016-aarch64-apple-darwin-pgo+lto-full.tar.zst
-bd7688441ddf8d5dc2ccb288bb31fb862330999a4a3f1544aa4f999c93b85a6a  cpython-3.12.7+20241016-aarch64-unknown-linux-gnu-lto-full.tar.zst
-4ae54498bd8d17fc8689fc57c7dadd59c625834af1b5f81fa21f943ff0e37643  cpython-3.12.7+20241016-x86_64-apple-darwin-pgo+lto-full.tar.zst
-a3709fb5350bff838bd7bb5dc18e67300c76dc3e5cd11f9c84e54c8aeac60784  cpython-3.12.7+20241016-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
-542e5ffac0b90dc1d872ba8157c0e96861b339b73a20eb21c53242f8c92e043c  cpython-3.13.0+20241016-aarch64-apple-darwin-pgo+lto-full.tar.zst
-dab453a00cc921bb9b27db1ea23a7071381ee6b0fb04c5bc299ff9d03c020320  cpython-3.13.0+20241016-aarch64-unknown-linux-gnu-lto-full.tar.zst
-1c1262a5105c1ad725c18b15979fb057b699e7b3c5c158d2af9b9c59ad29157b  cpython-3.13.0+20241016-x86_64-apple-darwin-pgo+lto-full.tar.zst
-078de2a3eef67377684e5054cbb059aa3f53d3189b2e19ab022f6b6242de014b  cpython-3.13.0+20241016-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+ceda72c76ecfd4294ae3fdf275202a3cfe912cf1dc7076c9526171aaaedbd3e3  cpython-3.11.14+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
+355c4a10233a2e3ac1e511e7cf052116404e197bc70fcc22b67aba635e209808  cpython-3.11.14+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
+898995bc172df26f5e0ce9bac316254756094466b9d472234e62e4045e1ddbf6  cpython-3.11.14+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
+9dd3129d78fc42a63690b09f9f48b27d35b0fbe7b580fd1cd85bb554c82671b6  cpython-3.11.14+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+bf70a8ba4d44eb243af9dc3485656e0ce3757588eefe27e1801b36ff9773805a  cpython-3.12.12+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
+48cccc8970f32586b60125199c955da870c5b9c52c05afb2bce28714eeb17cc6  cpython-3.12.12+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
+14fe4f2213f9b89d5649b2c50636be20393ec0092960d1acd11f7c84a4e1b2e9  cpython-3.12.12+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
+75428635145d4eb8de86cff5d00a823009a21fe8c173c7899959d0f41f73ad4a  cpython-3.12.12+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+3baef69715ffc554a7f173e9419cfb75ddf25b7cae91ab141032843d53fa34c4  cpython-3.13.12+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
+0ad848cab9031fc80c64442698f6eff112d81d45eaf53f49ece6ecbfc97f6ea6  cpython-3.13.12+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
+8ad36a0b44b03f2c236d05135600d626ae73245eae0361a17ddabb9e7163e50b  cpython-3.13.12+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
+2483028342db1e31a8a4004a859a856fade2563bae97f18812a2d27a123773e6  cpython-3.13.12+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
+d016c5a16c6a246f56cf2fae2a4150a339311a30787347ff1c1e063295c82401  cpython-3.14.3+20260211-aarch64-apple-darwin-pgo+lto-full.tar.zst
+13a08dca6f29df3701f1846184db78499d23014f6d5a70fa6c2c1f29baee350a  cpython-3.14.3+20260211-aarch64-unknown-linux-gnu-pgo+lto-full.tar.zst
+3e55c3d0914e7e4f2e7a135c80077a0ac635de9dcfa0c08f2544fc2165e264a4  cpython-3.14.3+20260211-x86_64-apple-darwin-pgo+lto-full.tar.zst
+96c6684fffd6da9d219400b2e3c020d9bc2c838cbb4ac202e2dd652dda3d1914  cpython-3.14.3+20260211-x86_64-unknown-linux-gnu-pgo+lto-full.tar.zst
 """
-VERSIONS = ("3.11.10", "3.12.7", "3.13.0")
+VERSIONS = ("3.11.14", "3.12.12", "3.13.12", "3.14.3")
 ARCH_MAP = {"arm64": "aarch64"}
 ARCH = ARCH_MAP.get(platform.machine(), platform.machine())
 
@@ -109,7 +113,7 @@ def main() -> int:
             subprocess.check_call(
                 (
                     *(py, "-mpip", "install"),
-                    *("pip==23.1.2", "setuptools==67.8.0", "wheel==0.40.0"),
+                    *("pip==25.0.1", "setuptools==75.8.0", "wheel==0.45.1"),
                 )
             )
             subprocess.check_call((py, "--version", "--version"))
