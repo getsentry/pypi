@@ -39,7 +39,6 @@ def main() -> int:
                 "./configure",
                 "--enable-static",
                 "--install-deps",
-                "--source-deps-only",
                 f"--prefix={args.prefix}",
             ),
             cwd=tmpdir,

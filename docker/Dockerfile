@@ -21,8 +21,11 @@ RUN : \
         libncursesw5-dev \
         libreadline-dev \
         libsqlite3-dev \
+        libcurl4-openssl-dev \
+        libsasl2-dev \
         libssl-dev \
         libtool \
+        libzstd-dev \
         make \
         pkg-config \
         uuid-dev \
