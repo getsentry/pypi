@@ -36,14 +36,23 @@ def main() -> int:
         link = os.path.join(args.dest, f"cp{major}{minor}-cp{major}{minor}")
         os.symlink(os.path.basename(installed_dir), link)
 
+        # remove PEP 668 marker so pip works normally
+        marker = os.path.join(
+            installed_dir,
+            "lib",
+            f"python{major}.{minor}",
+            "EXTERNALLY-MANAGED",
+        )
+        if os.path.exists(marker):
+            os.remove(marker)
+
         py = os.path.join(link, "bin", "python3")
+        subprocess.check_call((py, "-mensurepip"))
         subprocess.check_call(
             (
-                "uv",
-                "pip",
-                "install",
-                "--python",
                 py,
+                "-mpip",
+                "install",
                 "pip==25.0.1",
                 "setuptools==75.8.0",
                 "wheel==0.45.1",
