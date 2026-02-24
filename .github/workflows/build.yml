@@ -49,6 +49,7 @@ jobs:
         name: dist-linux-${{ matrix.arch }}
         path: dist/*
   macos:
+    needs: [image]
     strategy:
       matrix:
         runs-on: [macos-15]
