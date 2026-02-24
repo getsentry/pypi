@@ -130,5 +130,5 @@ on Python 3.14 — they just had issues on specific platforms.
 #### p4python==2025.1.2767466
 - **Platforms**: macos only (succeeded on linux-amd64)
 - **Category**: Missing build configuration
-- **Error**: `setup.py` requires `--ssl` parameter; missing OpenSSL on macOS runner
-- **Fix**: Re-added with `brew_requires = openssl@3` so OpenSSL is discoverable via CPPFLAGS/LDFLAGS/PKG_CONFIG_PATH
+- **Error**: `setup.py` requires `--ssl` parameter and P4API on macOS; multiple env issues
+- **Status**: Gave up — p4python has too many macOS-specific build issues (SSL detection, P4API download). Not re-added to packages.ini.
