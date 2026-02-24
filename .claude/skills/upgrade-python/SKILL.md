@@ -75,7 +75,7 @@ Commit all changes with a message like "build: single-version mode for Python 3.
 ## Step 3: Wait for CI, then download and parse logs
 
 Wait for CI to complete (it will likely fail — that's expected).
-Poll it every 3 minutes so we don't get ratelimited.
+Use `gh run watch` to avoid rate limits if polling.
 
 Download logs from each build job using the GitHub CLI:
 
