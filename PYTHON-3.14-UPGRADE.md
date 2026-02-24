@@ -14,6 +14,7 @@ CI run: https://github.com/getsentry/pypi/actions/runs/22364364543
 | Missing build dependency | 1 | xmlsec |
 | Build timeout | 1 | grpcio (1.73.1 on linux-amd64 only) |
 | Platform-specific issues | 3 | grpcio (1.67.0 macos), pillow (linux-amd64), p4python (macos) |
+| Validation failure (import) | 1 | uvloop |
 
 Note: The last two categories (timeout + platform-specific) are NOT Python 3.14 incompatibilities.
 These packages built successfully on at least one platform and were commented out (not restricted).
@@ -131,4 +132,14 @@ on Python 3.14 — they just had issues on specific platforms.
 - **Platforms**: macos only (succeeded on linux-amd64)
 - **Category**: Missing build configuration
 - **Error**: `setup.py` requires `--ssl` parameter and P4API on macOS; multiple env issues
-- **Status**: Gave up — p4python has too many macOS-specific build issues (SSL detection, P4API download). Not re-added to packages.ini.
+- **Status**: Marked `python_versions = <3.14` — too many macOS-specific build issues (SSL detection, P4API download) to fix in this pass
+
+### Validation failures
+
+These packages built successfully but failed during import validation on Python 3.14.
+
+#### uvloop==0.21.0
+- **Platforms**: all
+- **Category**: CPython 3.14 API removal
+- **Error**: `ImportError: cannot import name 'BaseDefaultEventLoopPolicy' from 'asyncio.events'`
+- **Note**: `asyncio.events.BaseDefaultEventLoopPolicy` was removed in CPython 3.14
