@@ -58,6 +58,15 @@ VERSIONS = ("3.14.3",)  # temporarily building only new version
         echo "$PWD/venv/bin" >> "$GITHUB_PATH"
 ```
 
+**Linux job strategy** — add `fail-fast: false` so matrix jobs don't cancel each other:
+```yaml
+  linux:
+    needs: [image]
+    strategy:
+      fail-fast: false
+      matrix:
+```
+
 **Line 44** — add `--upgrade-python` flag to linux build command:
 ```yaml
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --upgrade-python
@@ -106,11 +115,40 @@ In one pass:
 
 3. **Do NOT modify** packages that already have a `python_versions` restriction that is stricter than or equal to the new version (e.g., if a package already has `python_versions = <3.13`, leave it alone).
 
-## Step 5: Commit, push, repeat
+## Step 5: Write detailed failure summary to `PYTHON-MAJOR-MINOR-UPGRADE.md`
+
+After parsing logs, create a file named `PYTHON-MAJOR.MINOR-UPGRADE.md` (e.g., `PYTHON-3.14-UPGRADE.md`) in the repo root with a detailed summary of all packages that failed to build. This serves as a reference for fixing build issues. The file should contain:
+
+- A header with the Python version and date
+- A table or list of every failed package with:
+  - Package name and version
+  - Which platform(s) it failed on (linux-amd64, linux-arm64, macos, or all)
+  - The error message / root cause extracted from the logs
+  - A category for the failure (e.g., "Cython incompatibility", "pyo3 version too old", "missing C API", "setuptools/distutils issue", etc.)
+- A summary section grouping failures by category with counts, so we can prioritize which categories to tackle first
+
+Example structure:
+```markdown
+# Python 3.14 Upgrade — Build Failures
+
+## Summary by category
+| Category | Count | Packages |
+|----------|-------|----------|
+| pyo3 too old | 5 | pkg1, pkg2, ... |
+| Cython incompatibility | 3 | pkg3, pkg4, ... |
+
+## Detailed failures
+### pkg1==1.2.3
+- **Platforms**: all
+- **Category**: pyo3 too old
+- **Error**: pyo3 0.22.2 only supports up to Python 3.13
+```
+
+## Step 6: Commit, push, repeat
 
 Commit with a message like "mark python 3.14 build failures in packages.ini" and push.
 
-Wait for CI again. If there are still failures, repeat steps 3-5 until CI is green.
+Wait for CI again. If there are still failures, repeat steps 3-6 until CI is green.
 
 
 ## Important notes

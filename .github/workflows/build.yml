@@ -33,6 +33,7 @@ jobs:
   linux:
     needs: [image]
     strategy:
+      fail-fast: false
       matrix:
         include:
         - {arch: amd64, os: ubuntu-latest}
