@@ -1,4 +1,7 @@
-# upgrade-python
+---
+name: upgrade-python
+description: workflow to rebuild all packages against a newer python version
+---
 
 Adds support for a new Python version by building all packages, identifying failures, and marking them with `python_versions` restrictions.
 
@@ -75,10 +78,11 @@ gh api repos/getsentry/pypi/actions/jobs/<job-id>/logs > job-<name>.log
 ```
 
 Parse the logs to identify:
-- **Succeeded packages**: lines matching `=== <name>==<version>@<python>` that are NOT followed by `!!! FAILED:`
+- **Succeeded packages**: lines matching `=== <name>==<version>@<python>` that are NOT followed by `!!! FAILED:` or `!!! SKIPPED`
 - **Failed packages**: lines matching `!!! FAILED: <name>==<version>: <error message>`
+- **Skipped packages**: lines matching `!!! SKIPPED (newer version already failed): <name>==<version>` — these are older versions that were auto-skipped because a newer version of the same package already failed
 
-A package is considered failed if it failed on ANY platform (linux-amd64, linux-arm64, macos).
+A package is considered failed if it failed or was skipped on ANY platform (linux-amd64, linux-arm64, macos).
 
 ## Step 4: Update `packages.ini`
 
@@ -100,6 +104,7 @@ Wait for CI again. If there are still failures, repeat steps 3-5 until CI is gre
 ## Important notes
 
 - The `--upgrade-python` flag in `build.py` enables continue-on-failure mode with a 10-minute timeout per package. Without it, builds fail on first error (normal behavior).
-- The `=== name==version@python` and `!!! FAILED: name==version: error` log lines are the markers used to parse results.
+- The `=== name==version@python`, `!!! FAILED: name==version: error`, and `!!! SKIPPED (newer version already failed): name==version` log lines are the markers used to parse results.
+- In `--upgrade-python` mode, packages are sorted newest-version-first within each name. If the newest version fails, all older versions are automatically skipped.
 - When commenting out succeeded packages, comment out the entire section (`[name==version]` header + all config lines).
 - Keep the ordering of sections in `packages.ini` the same.
