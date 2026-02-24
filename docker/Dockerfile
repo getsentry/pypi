@@ -16,6 +16,7 @@ RUN : \
         libexpat1-dev \
         libffi-dev \
         libgdbm-dev \
+        libjpeg-dev \
         libltdl-dev \
         liblzma-dev \
         libncursesw5-dev \

@@ -102,6 +102,7 @@ These packages only publish binary wheels (no source distribution), and no cp314
 - **Category**: Missing build dep
 - **Error**: Build dependency `lxml` has no cp314 wheel on the internal PyPI index
 - **Note**: lxml==5.3.0 itself builds fine on 3.14, but xmlsec needs it at build time from the index
+- **Status**: Unblocked once lxml==5.3.0 cp314 wheel is deployed to internal index. After merging (which builds and deploys lxml's cp314 wheel), remove `python_versions = <3.14` from xmlsec==1.3.14 in a follow-up commit.
 
 ### Platform-specific issues (NOT Python 3.14 incompatibilities)
 
@@ -124,8 +125,10 @@ on Python 3.14 — they just had issues on specific platforms.
 - **Category**: Missing system library
 - **Error**: Missing `libjpeg` headers in the Docker build container
 - **Note**: pillow==11.3.0 succeeds everywhere
+- **Fix**: Added `libjpeg-dev` to Dockerfile and re-added pillow versions to packages.ini
 
 #### p4python==2025.1.2767466
 - **Platforms**: macos only (succeeded on linux-amd64)
 - **Category**: Missing build configuration
 - **Error**: `setup.py` requires `--ssl` parameter; missing OpenSSL on macOS runner
+- **Fix**: Re-added with `brew_requires = openssl@3` so OpenSSL is discoverable via CPPFLAGS/LDFLAGS/PKG_CONFIG_PATH
