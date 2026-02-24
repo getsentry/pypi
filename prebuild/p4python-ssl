@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("prefix")
+    args = parser.parse_args()
+
+    ssl_prefix = (
+        subprocess.check_output(("brew", "--prefix", "openssl@3")).decode().strip()
+    )
+    print(f"p4python-ssl: openssl@3 prefix is {ssl_prefix}")
+
+    os.makedirs(args.prefix, exist_ok=True)
+    with open(os.path.join(args.prefix, "env.json"), "w") as f:
+        json.dump({"ssl": ssl_prefix}, f)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

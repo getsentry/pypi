@@ -461,6 +461,13 @@ def _prebuild(
 
         subprocess.check_call((*package.custom_prebuild, prefix))
         before = {**env}
+
+        # allow prebuild scripts to set extra env vars via env.json
+        env_json = os.path.join(prefix, "env.json")
+        if os.path.exists(env_json):
+            with open(env_json) as f:
+                env.update(json.load(f))
+
         env.update(
             PATH=_join_env(
                 name="PATH",
