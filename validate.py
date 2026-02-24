@@ -160,16 +160,27 @@ def main() -> int:
         pkg, _, version_s = k.partition("==")
         packages[(pkg, Version(version_s))] = Info.from_dct(cfg[k])
 
+    failed = []
     for filename in sorted(os.listdir(args.dist)):
         name, version, _, wheel_tags = parse_wheel_filename(filename)
         info = packages[(name, version)]
         for python in _pythons_to_check(wheel_tags):
-            _validate(
-                python=python,
-                filename=os.path.join(args.dist, filename),
-                info=info,
-                index_url=args.index_url,
-            )
+            try:
+                _validate(
+                    python=python,
+                    filename=os.path.join(args.dist, filename),
+                    info=info,
+                    index_url=args.index_url,
+                )
+            except subprocess.CalledProcessError:
+                failed.append(f"{name}=={version} ({python})")
+                print(f"!!! FAILED validation: {name}=={version} ({python})")
+
+    if failed:
+        print(f"\nFAILED VALIDATIONS ({len(failed)}):")
+        for f in failed:
+            print(f"  - {f}")
+        return 1
 
     return 0
 
