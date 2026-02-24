@@ -58,15 +58,6 @@ VERSIONS = ("3.14.3",)  # temporarily building only new version
         echo "$PWD/venv/bin" >> "$GITHUB_PATH"
 ```
 
-**Linux job strategy** — add `fail-fast: false` so matrix jobs don't cancel each other:
-```yaml
-  linux:
-    needs: [image]
-    strategy:
-      fail-fast: false
-      matrix:
-```
-
 **Line 44** — add `--upgrade-python` flag to linux build command:
 ```yaml
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --upgrade-python
@@ -84,6 +75,7 @@ Commit all changes with a message like "build: single-version mode for Python 3.
 ## Step 3: Wait for CI, then download and parse logs
 
 Wait for CI to complete (it will likely fail — that's expected).
+Poll it every 3 minutes so we don't get ratelimited.
 
 Download logs from each build job using the GitHub CLI:
 
