@@ -16,7 +16,7 @@ from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
-PYTHONS = ((3, 11), (3, 12), (3, 13), (3, 14))
+PYTHONS = ((3, 14),)  # temporarily building only new version
 DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
 
 
