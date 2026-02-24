@@ -181,6 +181,20 @@ Then run `python3 -m format_ini packages.ini` to sort and format. The formatter 
 
 Commit and push. Verify CI passes — all packages should either download pre-built wheels or build successfully.
 
+## Step 8: Revert single-version mode
+
+After all packages are restored and CI passes, revert the single-version mode changes from step 1 to build all Python versions again:
+
+1. **`build.py`**: Change `PYTHONS` back to all versions (e.g., `((3, 11), (3, 12), (3, 13), (3, 14))`)
+2. **`validate.py`**: Same change to `PYTHONS`
+3. **`docker/install-pythons`**: Change `VERSIONS` back to all versions (e.g., `("3.11.14", "3.12.12", "3.13.12", "3.14.3")`)
+4. **`docker/Dockerfile`**: Restore all cpython paths in `PATH` env var
+5. **`.github/workflows/build.yml`**:
+   - Remove `--upgrade-python` flag from both linux and macos build commands
+   - Restore all cpython PATH entries in the macos job
+
+Commit with a message like "revert single-version mode, build all python versions" and push. Verify CI passes with all Python versions building.
+
 ## Important notes
 
 - The `--upgrade-python` flag in `build.py` enables continue-on-failure mode with a 10-minute timeout per package. Without it, builds fail on first error (normal behavior).
