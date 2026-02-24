@@ -103,7 +103,7 @@ In one pass:
 
 1. **Remove** all packages that **succeeded on all platforms** — delete their entire section (`[name==version]` header + all config lines). The `format-packages-ini` pre-commit hook uses `configparser` which strips `#` comments, so commenting out doesn't work. Just delete succeeded sections outright. They don't need to rebuild.
 
-2. **Add `python_versions = <MAJOR.MINOR`** to each **failed** package's section.
+2. **Add `python_versions = <MAJOR.MINOR`** to each **failed** package's section. Do NOT add `#` comments above — `configparser` strips them and can cause the `python_versions` line to be lost during formatting.
 
 3. **Do NOT modify** packages that already have a `python_versions` restriction that is stricter than or equal to the new version (e.g., if a package already has `python_versions = <3.13`, leave it alone).
 
