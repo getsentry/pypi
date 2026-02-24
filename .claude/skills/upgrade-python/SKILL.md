@@ -142,6 +142,44 @@ Commit with a message like "mark python 3.14 build failures in packages.ini" and
 
 Wait for CI again. If there are still failures, repeat steps 3-6 until CI is green.
 
+## Step 7: Restore deleted packages and verify
+
+After CI is green, restore all previously-succeeded packages that were deleted in step 4. These packages don't need to rebuild (their existing wheels are fine), but they must remain in `packages.ini` so future builds include them.
+
+Use a script to find sections present in the pre-deletion commit but missing from the current file:
+
+```python
+import configparser, subprocess
+
+old_content = subprocess.check_output(['git', 'show', '<pre-deletion-commit>:packages.ini']).decode()
+old = configparser.RawConfigParser(strict=False)
+old.read_string(old_content)
+
+with open('packages.ini') as f:
+    cur = configparser.RawConfigParser(strict=False)
+    cur.read_string(f.read())
+
+missing = set(old.sections()) - set(cur.sections())
+# Exclude any packages intentionally not restored
+
+# Append missing sections to packages.ini
+with open('packages.ini', 'a') as f:
+    for section in sorted(missing):
+        f.write(f'\n[{section}]\n')
+        for k, v in old[section].items():
+            v = v.strip()
+            if '\n' in v:
+                f.write(f'{k} =\n')
+                for part in v.split('\n'):
+                    if part.strip():
+                        f.write(f'    {part.strip()}\n')
+            else:
+                f.write(f'{k} = {v}\n')
+```
+
+Then run `python3 -m format_ini packages.ini` to sort and format. The formatter handles ordering automatically.
+
+Commit and push. Verify CI passes — all packages should either download pre-built wheels or build successfully.
 
 ## Important notes
 
