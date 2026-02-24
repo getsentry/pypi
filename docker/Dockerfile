@@ -36,7 +36,7 @@ RUN : \
 
 ENV \
     BUILD_IN_CONTAINER=1 \
-    PATH=/venv/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin:/opt/python/cp313-cp313/bin:/opt/python/cp314-cp314/bin:$PATH \
+    PATH=/venv/bin:/opt/python/cp314-cp314/bin:$PATH \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_NO_WARN_ABOUT_ROOT_USER=0
@@ -48,7 +48,7 @@ RUN /tmp/install-pythons
 
 COPY requirements.txt /tmp/requirements.txt
 RUN : \
-    && /opt/python/cp311-cp311/bin/python3.11 -m venv /venv \
+    && python3.11 -m venv /venv \
     && /venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 ENTRYPOINT ["dumb-init", "--"]
