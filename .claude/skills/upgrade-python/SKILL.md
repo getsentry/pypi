@@ -101,9 +101,9 @@ A package is considered failed if it failed or was skipped on ANY platform (linu
 
 In one pass:
 
-1. **Comment out** all packages that **succeeded on all platforms** by prepending `# ` to their section header and all their settings lines. These don't need to rebuild.
+1. **Remove** all packages that **succeeded on all platforms** — delete their entire section (`[name==version]` header + all config lines). The `format-packages-ini` pre-commit hook uses `configparser` which strips `#` comments, so commenting out doesn't work. Just delete succeeded sections outright. They don't need to rebuild.
 
-2. **Add `python_versions = <MAJOR.MINOR`** to each **failed** package's section. Also add a comment above the `python_versions` line (max ~80 chars) summarizing why the build failed — extract this from the error in the logs (e.g., `# pyo3 0.22.2 only supports up to Python 3.13`).
+2. **Add `python_versions = <MAJOR.MINOR`** to each **failed** package's section.
 
 3. **Do NOT modify** packages that already have a `python_versions` restriction that is stricter than or equal to the new version (e.g., if a package already has `python_versions = <3.13`, leave it alone).
 
@@ -148,5 +148,5 @@ Wait for CI again. If there are still failures, repeat steps 3-6 until CI is gre
 - The `--upgrade-python` flag in `build.py` enables continue-on-failure mode with a 10-minute timeout per package. Without it, builds fail on first error (normal behavior).
 - The `=== name==version@python`, `!!! FAILED: name==version: error`, and `!!! SKIPPED (newer version already failed): name==version` log lines are the markers used to parse results.
 - In `--upgrade-python` mode, packages are sorted newest-version-first within each name. If the newest version fails, all older versions are automatically skipped.
-- When commenting out succeeded packages, comment out the entire section (`[name==version]` header + all config lines).
-- Keep the ordering of sections in `packages.ini` the same.
+- Do NOT try to comment out sections with `#` — the `format-packages-ini` pre-commit hook uses Python's `configparser` which strips all `#` comments. Instead, delete succeeded sections entirely.
+- The `format-packages-ini` hook also sorts and reformats `packages.ini`, so ordering is handled automatically.
