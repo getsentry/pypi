@@ -143,3 +143,6 @@ These packages built successfully but failed during import validation on Python 
 - **Category**: CPython 3.14 API removal
 - **Error**: `ImportError: cannot import name 'BaseDefaultEventLoopPolicy' from 'asyncio.events'`
 - **Note**: `asyncio.events.BaseDefaultEventLoopPolicy` was removed in CPython 3.14
+
+This needs to be figured out for granian to pass validation as well.
+
