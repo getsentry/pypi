@@ -70,6 +70,7 @@ class Package(NamedTuple):
     version: Version
     apt_requires: tuple[str, ...]
     brew_requires: tuple[str, ...]
+    brew_prefix_env: tuple[tuple[str, str], ...]
     custom_prebuild: tuple[str, ...]
     likely_binary_ignore: tuple[str, ...]
     python_versions: SpecifierSet
@@ -92,6 +93,12 @@ class Package(NamedTuple):
         dct = dict(val)
         apt_requires = tuple(dct.pop("apt_requires", "").split())
         brew_requires = tuple(dct.pop("brew_requires", "").split())
+        brew_prefix_env_parts = [
+            pair.split("=", 1)
+            for pair in dct.pop("brew_prefix_env", "").split()
+            if pair
+        ]
+        brew_prefix_env = tuple((k, v) for k, v in brew_prefix_env_parts)
         custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
         likely_binary_ignore = tuple(dct.pop("likely_binary_ignore", "").split())
         python_versions = dct.pop("python_versions", "")
@@ -110,6 +117,7 @@ class Package(NamedTuple):
             version=Version(version_s),
             apt_requires=apt_requires,
             brew_requires=brew_requires,
+            brew_prefix_env=brew_prefix_env,
             custom_prebuild=custom_prebuild,
             likely_binary_ignore=likely_binary_ignore,
             python_versions=SpecifierSet(python_versions),
@@ -184,6 +192,16 @@ def _darwin_install(package: Package) -> Generator[None, None, None]:
     with contextlib.ExitStack() as ctx:
         if package.brew_requires:
             ctx.enter_context(_brew_install(package.brew_requires))
+        if package.brew_prefix_env:
+            orig = {**os.environ}
+            for env_name, brew_pkg in package.brew_prefix_env:
+                os.environ[env_name] = _brew_paths(brew_pkg)[0]
+
+            def _restore(orig: dict[str, str] = orig) -> None:
+                os.environ.clear()
+                os.environ.update(orig)
+
+            ctx.callback(_restore)
         yield
 
 
@@ -461,13 +479,6 @@ def _prebuild(
 
         subprocess.check_call((*package.custom_prebuild, prefix))
         before = {**env}
-
-        # allow prebuild scripts to set extra env vars via env.json
-        env_json = os.path.join(prefix, "env.json")
-        if os.path.exists(env_json):
-            with open(env_json) as f:
-                env.update(json.load(f))
-
         env.update(
             PATH=_join_env(
                 name="PATH",
