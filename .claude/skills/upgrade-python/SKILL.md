@@ -37,6 +37,18 @@ Change `VERSIONS` to only the new full version:
 VERSIONS = ("3.14.3",)  # temporarily building only new version
 ```
 
+### `docker/Dockerfile`
+
+**Line 39** — keep only the new cpython PATH entry (the base image already provides python3.11 on PATH):
+```dockerfile
+    PATH=/venv/bin:/opt/python/cp314-cp314/bin:$PATH \
+```
+
+**Line 51** — use `python3.11` directly (provided by the base image) instead of the installed cpython path:
+```dockerfile
+    && python3.11 -m venv /venv \
+```
+
 ### `.github/workflows/build.yml`
 
 **Lines 60-63** — keep only the new cpython PATH entry:
