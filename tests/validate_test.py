@@ -3,6 +3,7 @@ from __future__ import annotations
 import zipfile
 
 import pytest
+from packaging.specifiers import SpecifierSet
 from packaging.tags import parse_tag
 
 import validate
@@ -11,6 +12,7 @@ import validate
 def test_info_nothing_supplied():
     info = validate.Info.from_dct({})
     expected = validate.Info(
+        python_versions=SpecifierSet(),
         validate_extras=None,
         validate_incorrect_missing_deps=(),
         validate_skip_imports=(),
@@ -27,6 +29,7 @@ def test_info_all_supplied():
         }
     )
     expected = validate.Info(
+        python_versions=SpecifierSet(),
         validate_extras="d",
         validate_incorrect_missing_deps=("six",),
         validate_skip_imports=("uwsgidecorators",),
