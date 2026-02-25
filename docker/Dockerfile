@@ -6,10 +6,9 @@ RUN : \
         -y --no-install-recommends \
         automake \
         ca-certificates \
+        clang \
         curl \
         dumb-init \
-        g++ \
-        gcc \
         git \
         libbz2-dev \
         libdb-dev \

@@ -257,18 +257,22 @@ def _apt_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
     installed_before = _linux_installed_packages()
 
-    subprocess.check_call(
+    ret = subprocess.run(
         (
             "apt-get",
+            "-o",
+            "Acquire::Retries=3",
             "install",
             "-qqy",
             "--no-install-recommends",
             *packages,
         ),
         env={**os.environ, "DEBIAN_FRONTEND": "noninteractive"},
-        stderr=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
+        capture_output=True,
     )
+    if ret.returncode:
+        sys.stderr.buffer.write(ret.stderr)
+        ret.check_returncode()
 
     try:
         yield
