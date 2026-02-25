@@ -51,19 +51,49 @@ VERSIONS = ("3.14.3",)  # temporarily building only new version
 
 ### `.github/workflows/build.yml`
 
-**Lines 60-63** — keep only the new cpython PATH entry:
+The production workflow uses pre-built `:latest` images. During a Python upgrade, the Dockerfile has changes that aren't in the production image yet, so you must temporarily add an `image` job that builds and pushes the modified image, and wire the `linux` job to use it.
+
+**Add a temporary `image` job** before the `linux` job:
+```yaml
+  image:
+    strategy:
+      matrix:
+        include:
+        - {arch: amd64, os: ubuntu-latest}
+        - {arch: arm64, os: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v3
+    - run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
+    - run: |
+        docker buildx build \
+            --cache-from ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
+            --cache-to type=inline \
+            --platform linux/${{ matrix.arch }} \
+            --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }} \
+            ${{ github.ref == 'refs/heads/main' && format('--tag ghcr.io/getsentry/pypi-manylinux-{0}-ci:latest', matrix.arch) || '' }} \
+            --push \
+            docker
+```
+
+**Modify the `linux` job** to depend on `image` and use the SHA-tagged image:
+```yaml
+  linux:
+    needs: [image]
+    ...
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }}
+```
+
+**macOS PATH entries** — keep only the new cpython PATH entry:
 ```yaml
     - run: |
         echo "$PWD/pythons/cp314-cp314/bin" >> "$GITHUB_PATH"
         echo "$PWD/venv/bin" >> "$GITHUB_PATH"
 ```
 
-**Line 44** — add `--upgrade-python` flag to linux build command:
-```yaml
-    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --upgrade-python
-```
-
-**Line 66** — add `--upgrade-python` flag to macos build command:
+**Add `--upgrade-python` flag** to both linux and macos build commands:
 ```yaml
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --upgrade-python
 ```
@@ -190,6 +220,9 @@ After all packages are restored and CI passes, revert the single-version mode ch
 3. **`docker/install-pythons`**: Change `VERSIONS` back to all versions (e.g., `("3.11.14", "3.12.12", "3.13.12", "3.14.3")`)
 4. **`docker/Dockerfile`**: Restore all cpython paths in `PATH` env var
 5. **`.github/workflows/build.yml`**:
+   - Remove the temporary `image` job entirely
+   - Remove `needs: [image]` from the `linux` job
+   - Change the `linux` container back to `:latest` tag (from `:${{ github.sha }}`)
    - Remove `--upgrade-python` flag from both linux and macos build commands
    - Restore all cpython PATH entries in the macos job
 
