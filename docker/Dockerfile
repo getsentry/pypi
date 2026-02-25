@@ -44,7 +44,11 @@ ENV \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 COPY install-pythons /tmp/install-pythons
-RUN /tmp/install-pythons
+RUN /tmp/install-pythons \
+    # the base image installs libcrypt.so.1 to /usr/local/lib/ which the
+    # linker finds before the system copy. this breaks perl (needed by dpkg)
+    # because the base image's copy lacks the XCRYPT_2.0 symbol.
+    && rm -f /usr/local/lib/libcrypt.so*
 
 COPY requirements.txt /tmp/requirements.txt
 RUN : \
