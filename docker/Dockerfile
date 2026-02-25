@@ -2,8 +2,8 @@ FROM python:3.11.4-slim-bullseye
 
 RUN : \
     && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install \
-        -y --no-install-recommends --fix-missing \
+    && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install \
+        -y --no-install-recommends \
         automake \
         ca-certificates \
         curl \
