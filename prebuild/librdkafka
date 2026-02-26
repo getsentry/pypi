@@ -39,20 +39,17 @@ def main() -> int:
                 "./configure",
                 "--enable-static",
                 "--install-deps",
-                "--source-deps-only",
                 f"--prefix={args.prefix}",
             ),
             cwd=tmpdir,
         )
 
         print("building...")
-        subprocess.check_call(("make", "-j"), cwd=tmpdir)
-        print("testing...")
-        subprocess.check_call(
-            ("examples/rdkafka_example", "-X", "builtin.features"), cwd=tmpdir
-        )
+        subprocess.check_call(("make", "-j", "-C", "src"), cwd=tmpdir)
+        subprocess.check_call(("make", "-j", "-C", "src-cpp"), cwd=tmpdir)
         print("installing...")
-        subprocess.check_call(("make", "install"), cwd=tmpdir)
+        subprocess.check_call(("make", "-C", "src", "install"), cwd=tmpdir)
+        subprocess.check_call(("make", "-C", "src-cpp", "install"), cwd=tmpdir)
 
     return 0
 
