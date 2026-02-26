@@ -17,7 +17,7 @@ jobs:
         - {arch: amd64, os: ubuntu-latest}
         - {arch: arm64, os: ubuntu-24.04-arm}
     runs-on: ${{ matrix.os }}
-    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.head_ref == 'feat/python314-support' && '8df7dad534f8988425df12271307b7dd936fd644'' || 'latest' }}
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.head_ref == 'feat/python314-support' && '8df7dad534f8988425df12271307b7dd936fd644' || 'latest' }}
     steps:
     - uses: actions/checkout@v3
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
