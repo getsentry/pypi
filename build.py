@@ -32,7 +32,7 @@ from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
-PYTHONS = ((3, 11), (3, 12), (3, 13))
+PYTHONS = ((3, 11), (3, 12), (3, 13), (3, 14))
 
 BINARY_EXTS = frozenset(
     (".c", ".cc", ".cpp", ".cxx", ".pxd", ".pxi", ".pyx", ".go", ".rs")
@@ -257,18 +257,22 @@ def _apt_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
     installed_before = _linux_installed_packages()
 
-    subprocess.check_call(
+    ret = subprocess.run(
         (
             "apt-get",
+            "-o",
+            "Acquire::Retries=3",
             "install",
             "-qqy",
             "--no-install-recommends",
             *packages,
         ),
         env={**os.environ, "DEBIAN_FRONTEND": "noninteractive"},
-        stderr=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
+        capture_output=True,
     )
+    if ret.returncode:
+        sys.stderr.buffer.write(ret.stderr)
+        ret.check_returncode()
 
     try:
         yield
@@ -553,7 +557,13 @@ def _produced_binary(wheel: str) -> bool:
             return False
 
 
-def _build(package: Package, python: Python, dest: str, index_url: str) -> str:
+def _build(
+    package: Package,
+    python: Python,
+    dest: str,
+    index_url: str,
+    timeout: int | None = None,
+) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         pip = (python.exe, "-mpip")
 
@@ -569,7 +579,8 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> str:
                     "--no-deps",
                     f"--no-binary={package.name}",
                     f"{package.name}=={package.version}",
-                )
+                ),
+                timeout=timeout,
             )
             (sdist,) = os.listdir(sdist_dir)
             sdist = os.path.join(sdist_dir, sdist)
@@ -589,6 +600,7 @@ def _build(package: Package, python: Python, dest: str, index_url: str) -> str:
                     # disable bulky "universal2" building
                     "ARCHFLAGS": "",
                 },
+                timeout=timeout,
             )
             (filename,) = os.listdir(build_dir)
             filename_full = os.path.join(build_dir, filename)
@@ -616,6 +628,7 @@ def main() -> int:
     parser.add_argument("--pypi-url", required=True)
     parser.add_argument("--packages-ini", default="packages.ini")
     parser.add_argument("--dest", default="dist")
+    parser.add_argument("--upgrade-python", action="store_true")
     args = parser.parse_args()
 
     cfg = configparser.RawConfigParser()
@@ -633,11 +646,36 @@ def main() -> int:
     internal_wheels = _internal_wheels(args.pypi_url)
     built: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
 
+    timeout = 600 if args.upgrade_python else None
+    failures: list[str] = []
+    failed_names: set[str] = set()
+
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]
+
+    if args.upgrade_python:
+        # sort newest versions first within each package name so we can
+        # bail out early: if the newest version fails, older ones will too
+        by_name: dict[str, list[Package]] = {}
+        for p in all_packages:
+            by_name.setdefault(p.name, []).append(p)
+        all_packages = [
+            p
+            for pkgs in by_name.values()
+            for p in sorted(pkgs, key=lambda p: p.version, reverse=True)
+        ]
+
     for package, python in itertools.product(all_packages, pythons):
         if package.satisfied_by(internal_wheels, python.tags):
             continue
         elif python.version_string not in package.python_versions:
+            continue
+
+        pkg_id = f"{package.name}=={package.version}"
+
+        if args.upgrade_python and package.name in failed_names:
+            print(f"=== {pkg_id}@{python.version}")
+            print(f"!!! SKIPPED (newer version already failed): {pkg_id}")
+            failures.append(pkg_id)
             continue
 
         print(f"=== {package.name}=={package.version}@{python.version}")
@@ -645,15 +683,39 @@ def main() -> int:
         if package.satisfied_by(built, python.tags):
             print("-> just built!")
         else:
-            print("-> building...")
-            downloaded_wheel = _download(package, python, args.dest)
-            if downloaded_wheel is not None:
-                _add_wheel(built, downloaded_wheel)
-                print(f"-> downloaded! {downloaded_wheel}")
-            else:
-                built_wheel = _build(package, python, args.dest, index_url)
-                _add_wheel(built, built_wheel)
-                print(f"-> built! {built_wheel}")
+            try:
+                print("-> building...")
+                downloaded_wheel = _download(package, python, args.dest)
+                if downloaded_wheel is not None:
+                    _add_wheel(built, downloaded_wheel)
+                    print(f"-> downloaded! {downloaded_wheel}")
+                else:
+                    built_wheel = _build(
+                        package,
+                        python,
+                        args.dest,
+                        index_url,
+                        timeout=timeout,
+                    )
+                    _add_wheel(built, built_wheel)
+                    print(f"-> built! {built_wheel}")
+            except (
+                subprocess.CalledProcessError,
+                subprocess.TimeoutExpired,
+                SystemExit,
+            ) as e:
+                if args.upgrade_python:
+                    print(f"!!! FAILED: {pkg_id}: {e}")
+                    failures.append(pkg_id)
+                    failed_names.add(package.name)
+                else:
+                    raise
+
+    if failures:
+        print(f"\nFAILED PACKAGES ({len(failures)}):")
+        for f in failures:
+            print(f"  - {f}")
+        return 1
 
     return 0
 

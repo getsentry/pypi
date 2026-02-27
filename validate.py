@@ -12,15 +12,17 @@ from collections.abc import Mapping
 from typing import NamedTuple
 
 import packaging.tags
+from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
-PYTHONS = ((3, 11), (3, 12), (3, 13))
+PYTHONS = ((3, 11), (3, 12), (3, 13), (3, 14))
 DIST_INFO_RE = re.compile(r"^[^/]+.dist-info/[^/]+$")
 
 
 class Info(NamedTuple):
+    python_versions: SpecifierSet
     validate_extras: str | None
     validate_incorrect_missing_deps: tuple[str, ...]
     validate_skip_imports: tuple[str, ...]
@@ -28,6 +30,7 @@ class Info(NamedTuple):
     @classmethod
     def from_dct(cls, dct: Mapping[str, str]) -> Info:
         return cls(
+            python_versions=SpecifierSet(dct.get("python_versions", "")),
             validate_extras=dct.get("validate_extras") or None,
             validate_incorrect_missing_deps=tuple(
                 dct.get("validate_incorrect_missing_deps", "").split()
@@ -160,16 +163,31 @@ def main() -> int:
         pkg, _, version_s = k.partition("==")
         packages[(pkg, Version(version_s))] = Info.from_dct(cfg[k])
 
+    failed = []
     for filename in sorted(os.listdir(args.dist)):
         name, version, _, wheel_tags = parse_wheel_filename(filename)
         info = packages[(name, version)]
         for python in _pythons_to_check(wheel_tags):
-            _validate(
-                python=python,
-                filename=os.path.join(args.dist, filename),
-                info=info,
-                index_url=args.index_url,
-            )
+            # e.g. "python3.11" -> "3.11"
+            py_version = python[len("python") :]
+            if py_version not in info.python_versions:
+                continue
+            try:
+                _validate(
+                    python=python,
+                    filename=os.path.join(args.dist, filename),
+                    info=info,
+                    index_url=args.index_url,
+                )
+            except subprocess.CalledProcessError:
+                failed.append(f"{name}=={version} ({python})")
+                print(f"!!! FAILED validation: {name}=={version} ({python})")
+
+    if failed:
+        print(f"\nFAILED VALIDATIONS ({len(failed)}):")
+        for f in failed:
+            print(f"  - {f}")
+        return 1
 
     return 0
 
