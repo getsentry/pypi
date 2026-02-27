@@ -3,6 +3,7 @@ from __future__ import annotations
 import zipfile
 
 import pytest
+from packaging.specifiers import SpecifierSet
 from packaging.tags import parse_tag
 
 import validate
@@ -11,6 +12,7 @@ import validate
 def test_info_nothing_supplied():
     info = validate.Info.from_dct({})
     expected = validate.Info(
+        python_versions=SpecifierSet(),
         validate_extras=None,
         validate_incorrect_missing_deps=(),
         validate_skip_imports=(),
@@ -27,6 +29,7 @@ def test_info_all_supplied():
         }
     )
     expected = validate.Info(
+        python_versions=SpecifierSet(),
         validate_extras="d",
         validate_incorrect_missing_deps=("six",),
         validate_skip_imports=("uwsgidecorators",),
@@ -43,24 +46,24 @@ def test_pythons_to_check_no_pythons_raises_error():
 
 def test_pythons_to_check_py2_ignored():
     ret = validate._pythons_to_check(parse_tag("py2.py3-none-any"))
-    assert ret == ("python3.11", "python3.12", "python3.13")
+    assert ret == ("python3.11", "python3.12", "python3.13", "python3.14")
 
 
 def test_pythons_to_check_py3_gives_all():
     ret = validate._pythons_to_check(parse_tag("py3-none-any"))
-    assert ret == ("python3.11", "python3.12", "python3.13")
+    assert ret == ("python3.11", "python3.12", "python3.13", "python3.14")
 
 
 def test_pythons_to_check_abi3():
     tag = "cp37-abi3-manylinux1_x86_64"
     ret = validate._pythons_to_check(parse_tag(tag))
-    assert ret == ("python3.11", "python3.12", "python3.13")
+    assert ret == ("python3.11", "python3.12", "python3.13", "python3.14")
 
 
 def test_pythons_to_check_minimum_abi3():
     tag = "cp312-abi3-manylinux1_x86_64"
     ret = validate._pythons_to_check(parse_tag(tag))
-    assert ret == ("python3.12", "python3.13")
+    assert ret == ("python3.12", "python3.13", "python3.14")
 
 
 def test_pythons_to_check_specific_cpython_tag():
@@ -76,7 +79,7 @@ def test_pythons_to_check_multi_platform_with_musllinux():
     tags = parse_tag("py3-none-any") | parse_tag("py3-none-musllinux_1_2_x86_64")
     ret = validate._pythons_to_check(tags)
     # Should succeed because at least one tag (py3-none-any) is compatible
-    assert ret == ("python3.11", "python3.12", "python3.13")
+    assert ret == ("python3.11", "python3.12", "python3.13", "python3.14")
 
 
 def test_top_imports_record(tmp_path):

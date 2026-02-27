@@ -8,18 +8,17 @@ auditwheel==5.1.2
 delocate==0.10.4
 distlib==0.3.8
 dumb-pypi==1.15.0
-filelock==3.13.1
+filelock==3.20.3
 jinja2==3.1.6
 markupsafe==2.1.1
-packaging==21.3
+packaging==26.0
 patchelf==0.16.1.0 ; sys_platform == "linux"
 platformdirs==4.2.0
 pyelftools==0.28
-pyparsing==3.0.9
 typing-extensions==4.3.0
-virtualenv==20.26.6
-wheel==0.38.4
+virtualenv==20.36.1
+wheel==0.46.2
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==23.3
+pip==25.3
 setuptools==78.1.1

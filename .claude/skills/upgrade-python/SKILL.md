@@ -1,0 +1,237 @@
+---
+name: upgrade-python
+description: workflow to rebuild all packages against a newer python version
+---
+
+Adds support for a new Python version by building all packages, identifying failures, and marking them with `python_versions` restrictions.
+
+## Usage
+
+```
+/upgrade-python <full-version>
+```
+
+Example: `/upgrade-python 3.14.3`
+
+The argument is the full Python version (e.g., `3.14.3`). Derive the major.minor (`3.14`) and cpython tag (`cp314`) from it.
+
+## Step 1: Modify files for single-version build mode
+
+Edit these files to build ONLY the new Python version (this speeds up CI dramatically):
+
+### `build.py` line 35
+Change `PYTHONS` to only the new version:
+```python
+PYTHONS = ((3, 14),)  # temporarily building only new version
+```
+
+### `validate.py` line 19
+Same change:
+```python
+PYTHONS = ((3, 14),)  # temporarily building only new version
+```
+
+### `docker/install-pythons` line 9
+Change `VERSIONS` to only the new full version:
+```python
+VERSIONS = ("3.14.3",)  # temporarily building only new version
+```
+
+### `docker/Dockerfile`
+
+**Line 39** — keep only the new cpython PATH entry (the base image already provides python3.11 on PATH):
+```dockerfile
+    PATH=/venv/bin:/opt/python/cp314-cp314/bin:$PATH \
+```
+
+**Line 51** — use `python3.11` directly (provided by the base image) instead of the installed cpython path:
+```dockerfile
+    && python3.11 -m venv /venv \
+```
+
+### `.github/workflows/build.yml`
+
+The production workflow uses pre-built `:latest` images. During a Python upgrade, the Dockerfile has changes that aren't in the production image yet, so you must temporarily add an `image` job that builds and pushes the modified image, and wire the `linux` job to use it.
+
+**Add a temporary `image` job** before the `linux` job:
+```yaml
+  image:
+    strategy:
+      matrix:
+        include:
+        - {arch: amd64, os: ubuntu-latest}
+        - {arch: arm64, os: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      packages: write
+    steps:
+    - uses: actions/checkout@v3
+    - run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
+    - run: |
+        docker buildx build \
+            --cache-from ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
+            --cache-to type=inline \
+            --platform linux/${{ matrix.arch }} \
+            --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }} \
+            ${{ github.ref == 'refs/heads/main' && format('--tag ghcr.io/getsentry/pypi-manylinux-{0}-ci:latest', matrix.arch) || '' }} \
+            --push \
+            docker
+```
+
+**Modify the `linux` job** to depend on `image` and use the SHA-tagged image:
+```yaml
+  linux:
+    needs: [image]
+    ...
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }}
+```
+
+**macOS PATH entries** — keep only the new cpython PATH entry:
+```yaml
+    - run: |
+        echo "$PWD/pythons/cp314-cp314/bin" >> "$GITHUB_PATH"
+        echo "$PWD/venv/bin" >> "$GITHUB_PATH"
+```
+
+**Add `--upgrade-python` flag** to both linux and macos build commands:
+```yaml
+    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --upgrade-python
+```
+
+## Step 2: Commit and push
+
+Commit all changes with a message like "build: single-version mode for Python 3.14 upgrade" and push.
+
+## Step 3: Wait for CI, then download and parse logs
+
+Wait for CI to complete (it will likely fail — that's expected).
+Use `gh run watch` to avoid rate limits if polling.
+
+Download logs from each build job using the GitHub CLI:
+
+```bash
+# Get the workflow run
+gh run list --branch <current-branch> --limit 1
+
+# Get job IDs from the run
+gh run view <run-id> --json jobs --jq '.jobs[] | {name: .name, id: .databaseId, conclusion: .conclusion}'
+
+# Download logs for each job
+gh api repos/getsentry/pypi/actions/jobs/<job-id>/logs > job-<name>.log
+```
+
+Parse the logs to identify:
+- **Succeeded packages**: lines matching `=== <name>==<version>@<python>` that are NOT followed by `!!! FAILED:` or `!!! SKIPPED`
+- **Failed packages**: lines matching `!!! FAILED: <name>==<version>: <error message>`
+- **Skipped packages**: lines matching `!!! SKIPPED (newer version already failed): <name>==<version>` — these are older versions that were auto-skipped because a newer version of the same package already failed
+
+A package is considered failed if it failed or was skipped on ANY platform (linux-amd64, linux-arm64, macos).
+
+## Step 4: Update `packages.ini`
+
+In one pass:
+
+1. **Remove** all packages that **succeeded on all platforms** — delete their entire section (`[name==version]` header + all config lines). The `format-packages-ini` pre-commit hook uses `configparser` which strips `#` comments, so commenting out doesn't work. Just delete succeeded sections outright. They don't need to rebuild.
+
+2. **Add `python_versions = <MAJOR.MINOR`** to each **failed** package's section. Do NOT add `#` comments above — `configparser` strips them and can cause the `python_versions` line to be lost during formatting.
+
+3. **Do NOT modify** packages that already have a `python_versions` restriction that is stricter than or equal to the new version (e.g., if a package already has `python_versions = <3.13`, leave it alone).
+
+## Step 5: Write detailed failure summary to `PYTHON-MAJOR-MINOR-UPGRADE.md`
+
+After parsing logs, create a file named `PYTHON-MAJOR.MINOR-UPGRADE.md` (e.g., `PYTHON-3.14-UPGRADE.md`) in the repo root with a detailed summary of all packages that failed to build. This serves as a reference for fixing build issues. The file should contain:
+
+- A header with the Python version and date
+- A table or list of every failed package with:
+  - Package name and version
+  - Which platform(s) it failed on (linux-amd64, linux-arm64, macos, or all)
+  - The error message / root cause extracted from the logs
+  - A category for the failure (e.g., "Cython incompatibility", "pyo3 version too old", "missing C API", "setuptools/distutils issue", etc.)
+- A summary section grouping failures by category with counts, so we can prioritize which categories to tackle first
+
+Example structure:
+```markdown
+# Python 3.14 Upgrade — Build Failures
+
+## Summary by category
+| Category | Count | Packages |
+|----------|-------|----------|
+| pyo3 too old | 5 | pkg1, pkg2, ... |
+| Cython incompatibility | 3 | pkg3, pkg4, ... |
+
+## Detailed failures
+### pkg1==1.2.3
+- **Platforms**: all
+- **Category**: pyo3 too old
+- **Error**: pyo3 0.22.2 only supports up to Python 3.13
+```
+
+## Step 6: Commit, push, repeat
+
+Commit with a message like "mark python 3.14 build failures in packages.ini" and push.
+
+Wait for CI again. If there are still failures, repeat steps 3-6 until CI is green.
+
+## Step 7: Restore deleted packages and verify
+
+After CI is green, restore all previously-succeeded packages that were deleted in step 4. These packages don't need to rebuild (their existing wheels are fine), but they must remain in `packages.ini` so future builds include them.
+
+Use a script to find sections present in the pre-deletion commit but missing from the current file:
+
+```python
+import configparser, subprocess
+
+old_content = subprocess.check_output(['git', 'show', '<pre-deletion-commit>:packages.ini']).decode()
+old = configparser.RawConfigParser(strict=False)
+old.read_string(old_content)
+
+with open('packages.ini') as f:
+    cur = configparser.RawConfigParser(strict=False)
+    cur.read_string(f.read())
+
+missing = set(old.sections()) - set(cur.sections())
+# Exclude any packages intentionally not restored
+
+# Append missing sections to packages.ini
+with open('packages.ini', 'a') as f:
+    for section in sorted(missing):
+        f.write(f'\n[{section}]\n')
+        for k, v in old[section].items():
+            v = v.strip()
+            if '\n' in v:
+                f.write(f'{k} =\n')
+                for part in v.split('\n'):
+                    if part.strip():
+                        f.write(f'    {part.strip()}\n')
+            else:
+                f.write(f'{k} = {v}\n')
+```
+
+Then run `python3 -m format_ini packages.ini` to sort and format. The formatter handles ordering automatically.
+
+Commit and push. Verify CI passes — all packages should either download pre-built wheels or build successfully.
+
+## Step 8: Revert single-version mode
+
+After all packages are restored and CI passes, revert the single-version mode changes from step 1 to build all Python versions again:
+
+1. **`build.py`**: Change `PYTHONS` back to all versions (e.g., `((3, 11), (3, 12), (3, 13), (3, 14))`)
+2. **`validate.py`**: Same change to `PYTHONS`
+3. **`docker/install-pythons`**: Change `VERSIONS` back to all versions (e.g., `("3.11.14", "3.12.12", "3.13.12", "3.14.3")`)
+4. **`docker/Dockerfile`**: Restore all cpython paths in `PATH` env var
+5. **`.github/workflows/build.yml`**:
+   - Remove the temporary `image` job entirely
+   - Remove `needs: [image]` from the `linux` job
+   - Change the `linux` container back to `:latest` tag (from `:${{ github.sha }}`)
+   - Remove `--upgrade-python` flag from both linux and macos build commands
+   - Restore all cpython PATH entries in the macos job
+
+Commit with a message like "revert single-version mode, build all python versions" and push. Verify CI passes with all Python versions building.
+
+## Important notes
+
+- The `--upgrade-python` flag in `build.py` enables continue-on-failure mode with a 10-minute timeout per package. Without it, builds fail on first error (normal behavior).
+- The `=== name==version@python`, `!!! FAILED: name==version: error`, and `!!! SKIPPED (newer version already failed): name==version` log lines are the markers used to parse results.
+- In `--upgrade-python` mode, packages are sorted newest-version-first within each name. If the newest version fails, all older versions are automatically skipped.
+- Do NOT try to comment out sections with `#` — the `format-packages-ini` pre-commit hook uses Python's `configparser` which strips all `#` comments. Instead, delete succeeded sections entirely.
+- The `format-packages-ini` hook also sorts and reformats `packages.ini`, so ordering is handled automatically.
