@@ -2,7 +2,7 @@ name: build
 on:
   pull_request:
   push:
-    branches: [main, test-me-*]
+    branches: [main]
 
 concurrency:
   # serialize runs on the default branch
@@ -11,12 +11,13 @@ concurrency:
 jobs:
   linux:
     strategy:
+      fail-fast: false
       matrix:
         include:
         - {arch: amd64, os: ubuntu-latest}
         - {arch: arm64, os: ubuntu-24.04-arm}
     runs-on: ${{ matrix.os }}
-    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.head_ref == 'feat/python314-support' && '769374905268e37a20b467d487926b78d56eb96c' || 'latest' }}
     steps:
     - uses: actions/checkout@v3
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
@@ -28,19 +29,17 @@ jobs:
   macos:
     strategy:
       matrix:
-        runs-on: [macos-14]
+        runs-on: [macos-15]
     runs-on: ${{ matrix.runs-on }}
     steps:
-    - uses: actions/checkout@v3
-    - run: |
-        # work around https://github.com/indygreg/python-build-standalone/issues/208
-        HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-tar
-        echo "$(brew --prefix gnu-tar)/libexec/gnubin" >> "$GITHUB_PATH"
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: astral-sh/setup-uv@884ad927a57e558e7a70b92f2bccf9198a4be546 # v6
     - run: python3 -u docker/install-pythons --dest pythons
     - run: |
         echo "$PWD/pythons/cp311-cp311/bin" >> "$GITHUB_PATH"
         echo "$PWD/pythons/cp312-cp312/bin" >> "$GITHUB_PATH"
         echo "$PWD/pythons/cp313-cp313/bin" >> "$GITHUB_PATH"
+        echo "$PWD/pythons/cp314-cp314/bin" >> "$GITHUB_PATH"
         echo "$PWD/venv/bin" >> "$GITHUB_PATH"
     - run: python3 -um venv venv && pip install -r docker/requirements.txt
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
