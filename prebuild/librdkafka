@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import sys
 import tempfile
 
 
@@ -34,15 +35,19 @@ def main() -> int:
 
         # https://github.com/confluentinc/confluent-kafka-python/blob/cdc5f3b6b5d32c4b9f97ee4f648ad64857fb8223/tools/bootstrap-librdkafka.sh#L42
         print("configuring...")
-        subprocess.check_call(
-            (
-                "./configure",
-                "--enable-static",
-                "--install-deps",
-                f"--prefix={args.prefix}",
-            ),
-            cwd=tmpdir,
-        )
+        configure_args = [
+            "./configure",
+            "--enable-static",
+            "--install-deps",
+        ]
+        # on Linux, use only bundled source deps to avoid picking up system
+        # GSSAPI/Kerberos which auditwheel won't bundle (undefined symbol at
+        # import time). on macOS, system deps are fine: GSSAPI is always
+        # available as a system framework, and bundled deps fail with Xcode 16.
+        if sys.platform == "linux":
+            configure_args.append("--source-deps-only")
+        configure_args.append(f"--prefix={args.prefix}")
+        subprocess.check_call(configure_args, cwd=tmpdir)
 
         print("building...")
         subprocess.check_call(("make", "-j", "-C", "src"), cwd=tmpdir)
