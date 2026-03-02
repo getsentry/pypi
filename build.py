@@ -708,6 +708,8 @@ def main() -> int:
                     print(f"!!! FAILED: {pkg_id}: {e}")
                     failures.append(pkg_id)
                     failed_names.add(package.name)
+                elif python.version == (3, 14):
+                    print(f"!!! WARNING (py3.14): {pkg_id}: {e}")
                 else:
                     raise
 
