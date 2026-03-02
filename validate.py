@@ -181,7 +181,9 @@ def main() -> int:
                 )
             except subprocess.CalledProcessError:
                 if python == "python3.14":
-                    print(f"!!! WARNING (py3.14) validation: {name}=={version} ({python})")
+                    print(
+                        f"!!! WARNING (py3.14) validation: {name}=={version} ({python})"
+                    )
                 else:
                     failed.append(f"{name}=={version} ({python})")
                     print(f"!!! FAILED validation: {name}=={version} ({python})")
