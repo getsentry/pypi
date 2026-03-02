@@ -6,6 +6,13 @@ sentry internal pypi
 this repository contains the tools to import and/or build packages from public pypi for the
 platforms and achitectures required for sentry development.
 
+## why?
+
+this is not merely a mirror; we also build wheels for upstream dependencies that do not ship wheels.
+
+we offer prebuilt wheels so dev machines + ci do not have to build wheels themselves; they just download.
+
+
 ## adding packages
 
 packages are configured in the `packages.ini` file.
