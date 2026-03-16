@@ -17,7 +17,7 @@ jobs:
         - {arch: amd64, os: ubuntu-latest}
         - {arch: arm64, os: ubuntu-24.04-arm}
     runs-on: ${{ matrix.os }}
-    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.head_ref == 'feat/python314-support' && '769374905268e37a20b467d487926b78d56eb96c' || 'latest' }}
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
     steps:
     - uses: actions/checkout@v3
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
@@ -40,8 +40,8 @@ jobs:
         echo "$PWD/pythons/cp312-cp312/bin" >> "$GITHUB_PATH"
         echo "$PWD/pythons/cp313-cp313/bin" >> "$GITHUB_PATH"
         echo "$PWD/pythons/cp314-cp314/bin" >> "$GITHUB_PATH"
-        echo "$PWD/venv/bin" >> "$GITHUB_PATH"
-    - run: python3 -um venv venv && pip install -r docker/requirements.txt
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+    - run: uv sync --no-dev
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
     - uses: actions/upload-artifact@v4
@@ -58,16 +58,14 @@ jobs:
       contents: read
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - run: pip install -r docker/requirements.txt
+    - uses: astral-sh/setup-uv@884ad927a57e558e7a70b92f2bccf9198a4be546 # v6
+    - run: uv sync --no-dev
     - uses: actions/download-artifact@v4
       with:
         path: dist
-    - run: python3 -um make_index --pypi-url https://pypi.devinfra.sentry.io --dest index
+    - run: uv run python3 -um make_index --pypi-url https://pypi.devinfra.sentry.io --dest index
     - uses: google-github-actions/auth@ba79af03959ebeac9769e648f473a284504d9193 # v2.1.10
       with:
         workload_identity_provider: projects/868781662168/locations/global/workloadIdentityPools/prod-github/providers/github-oidc-pool
         service_account: gha-pypi@sac-prod-sa.iam.gserviceaccount.com
-    - run: python3 -uS bin/upload-artifacts
+    - run: uv run python3 -uS bin/upload-artifacts

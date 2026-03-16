@@ -15,6 +15,13 @@ we offer prebuilt wheels so dev machines + ci do not have to build wheels themse
 
 ## adding packages
 
+first, setup the dev environment:
+
+```bash
+uv sync
+direnv allow
+```
+
 packages are configured in the `packages.ini` file.
 
 the easiest way to add a package and its dependencies is to use:
