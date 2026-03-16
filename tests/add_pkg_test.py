@@ -72,10 +72,7 @@ def test_pkg_copied_from_previous_version(pretend_pip, tmp_path, capsys):
     assert add_pkg.main(("a", f"--packages-ini={packages_ini}")) == 0
 
     assert packages_ini.read_text() == (
-        "[a==1]\n"
-        "apt_packages = zlib1g-dev\n"
-        "[a==2]\n"
-        "apt_packages = zlib1g-dev\n"
+        "[a==1]\napt_packages = zlib1g-dev\n[a==2]\napt_packages = zlib1g-dev\n"
     )
 
     out, _ = capsys.readouterr()

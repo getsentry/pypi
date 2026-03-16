@@ -1,10 +1,10 @@
 name: image
 on:
   pull_request:
-    paths: [docker/*, .github/workflows/image.yml]
+    paths: [docker/*, pyproject.toml, uv.lock, .github/workflows/image.yml]
   push:
     branches: [main, test-me-*]
-    paths: [docker/*, .github/workflows/image.yml]
+    paths: [docker/*, pyproject.toml, uv.lock, .github/workflows/image.yml]
 
 concurrency:
   # serialize runs on the default branch
@@ -32,4 +32,5 @@ jobs:
             --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }} \
             --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
             ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && '--push' || '' }} \
-            docker
+            --file docker/Dockerfile \
+            .

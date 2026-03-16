@@ -12,8 +12,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - run: pip install tox
-    - run: tox -e py
+    - uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7.5.0
+    - run: uv sync
+    - run: uv run coverage erase
+    - run: uv run coverage run -m pytest tests
+    - run: uv run coverage report

@@ -37,22 +37,20 @@ RUN : \
 ENV \
     BUILD_IN_CONTAINER=1 \
     PATH=/venv/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin:/opt/python/cp313-cp313/bin:/opt/python/cp314-cp314/bin:$PATH \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_NO_WARN_ABOUT_ROOT_USER=0
+    UV_COMPILE_BYTECODE=1 \
+    UV_NO_CACHE=1 \
+    UV_PROJECT_ENVIRONMENT=/venv
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY install-pythons /tmp/install-pythons
+COPY docker/install-pythons /tmp/install-pythons
 RUN /tmp/install-pythons \
     # the base image installs libcrypt.so.1 to /usr/local/lib/ which the
     # linker finds before the system copy. this breaks perl (needed by dpkg)
     # because the base image's copy lacks the XCRYPT_2.0 symbol.
     && rm -f /usr/local/lib/libcrypt.so*
 
-COPY requirements.txt /tmp/requirements.txt
-RUN : \
-    && python3.11 -m venv /venv \
-    && /venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
+COPY pyproject.toml uv.lock /tmp/build/
+RUN cd /tmp/build && uv sync --frozen --no-dev --no-install-project --python-preference only-system
 
 ENTRYPOINT ["dumb-init", "--"]
