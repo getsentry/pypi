@@ -25,6 +25,7 @@ jobs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     - name: build
       run: |
+        cp pyproject.toml uv.lock docker/
         docker buildx build \
             --cache-from ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
             --cache-to type=inline \
@@ -32,5 +33,4 @@ jobs:
             --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }} \
             --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
             ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && '--push' || '' }} \
-            --file docker/Dockerfile \
-            .
+            docker
