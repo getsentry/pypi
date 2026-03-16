@@ -25,10 +25,10 @@ from typing import ContextManager
 from typing import NamedTuple
 
 from packaging.specifiers import SpecifierSet
+from packaging.tags import Tag
 from packaging.tags import compatible_tags
 from packaging.tags import cpython_tags
 from packaging.tags import platform_tags
-from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
 from packaging.version import Version
 
@@ -146,7 +146,7 @@ def _brew_paths(*pkgs: str) -> list[str]:
 
 
 @contextlib.contextmanager
-def _brew_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
+def _brew_install(packages: tuple[str, ...]) -> Generator[None]:
     installed_before = _darwin_installed_packages()
 
     subprocess.check_call(
@@ -180,7 +180,7 @@ def _brew_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def _darwin_install(package: Package) -> Generator[None, None, None]:
+def _darwin_install(package: Package) -> Generator[None]:
     with contextlib.ExitStack() as ctx:
         if package.brew_requires:
             ctx.enter_context(_brew_install(package.brew_requires))
@@ -252,7 +252,7 @@ def _linux_installed_packages() -> frozenset[str]:
 
 
 @contextlib.contextmanager
-def _apt_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
+def _apt_install(packages: tuple[str, ...]) -> Generator[None]:
     _apt_update()
 
     installed_before = _linux_installed_packages()
@@ -284,7 +284,7 @@ def _apt_install(packages: tuple[str, ...]) -> Generator[None, None, None]:
 
 
 @contextlib.contextmanager
-def _linux_install(package: Package) -> Generator[None, None, None]:
+def _linux_install(package: Package) -> Generator[None]:
     with contextlib.ExitStack() as ctx:
         if package.apt_requires:
             ctx.enter_context(_apt_install(package.apt_requires))
@@ -387,8 +387,8 @@ def _check_arch(filename: str) -> str | None:
             if (archs & archs_for_file) != archs:
                 return (
                     f"-> {arch_file} has mismatched architectures\n"
-                    f'---> expected {", ".join(sorted(archs))}\n'
-                    f'---> received {", ".join(sorted(archs_for_file))}\n'
+                    f"---> expected {', '.join(sorted(archs))}\n"
+                    f"---> received {', '.join(sorted(archs_for_file))}\n"
                 )
 
     return None
@@ -450,7 +450,7 @@ def _join_env(
 @contextlib.contextmanager
 def _prebuild(
     package: Package, tmpdir: str, *, env: MutableMapping[str, str] | None = None
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     if env is None:
         env = os.environ
 
@@ -540,7 +540,7 @@ def _likely_binary(sdist: str, likely_binary_ignore: tuple[str, ...]) -> str | N
             ret.add(ext)
 
     if ret:
-        return f'sdist contains files with these extensions: {", ".join(sorted(ret))}'
+        return f"sdist contains files with these extensions: {', '.join(sorted(ret))}"
     elif b"cffi_modules" in setup_py_contents:
         return "sdist setup.py has `cffi_modules`"
     else:
