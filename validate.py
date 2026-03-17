@@ -152,7 +152,13 @@ def main() -> int:
     parser.add_argument("--index-url", required=True)
     parser.add_argument("--dist", default="dist")
     parser.add_argument("--packages-ini", default="packages.ini")
+    parser.add_argument("--only-python", nargs="*")
     args = parser.parse_args()
+
+    if args.only_python:
+        only = {tuple(int(p) for p in v.split(".")) for v in args.only_python}
+        global PYTHONS  # noqa: PLW0603
+        PYTHONS = tuple(v for v in PYTHONS if v in only)  # type: ignore[assignment]
 
     cfg = configparser.ConfigParser()
     if not cfg.read(args.packages_ini):
@@ -180,13 +186,8 @@ def main() -> int:
                     index_url=args.index_url,
                 )
             except subprocess.CalledProcessError:
-                if python == "python3.14":
-                    print(
-                        f"!!! WARNING (py3.14) validation: {name}=={version} ({python})"
-                    )
-                else:
-                    failed.append(f"{name}=={version} ({python})")
-                    print(f"!!! FAILED validation: {name}=={version} ({python})")
+                failed.append(f"{name}=={version} ({python})")
+                print(f"!!! FAILED validation: {name}=={version} ({python})")
 
     if failed:
         print(f"\nFAILED VALIDATIONS ({len(failed)}):")

@@ -20,8 +20,8 @@ jobs:
     container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
     steps:
     - uses: actions/checkout@v3
-    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
-    - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
+    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --only-python 3.11 3.12 3.13
+    - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple --only-python 3.11 3.12 3.13
     - uses: actions/upload-artifact@v4
       with:
         name: dist-linux-${{ matrix.arch }}
@@ -42,12 +42,46 @@ jobs:
         echo "$PWD/pythons/cp314-cp314/bin" >> "$GITHUB_PATH"
         echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
     - run: uv sync --no-dev
-    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
-    - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
+    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --only-python 3.11 3.12 3.13
+    - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple --only-python 3.11 3.12 3.13
     - uses: actions/upload-artifact@v4
       with:
         name: dist-${{ matrix.runs-on }}
         path: dist/*
+
+  linux (py3.14):
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - {arch: amd64, os: ubuntu-latest}
+        - {arch: arm64, os: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
+    steps:
+    - uses: actions/checkout@v3
+    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --only-python 3.14
+    - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple --only-python 3.14
+  macos (py3.14):
+    strategy:
+      matrix:
+        runs-on: [macos-15]
+    runs-on: ${{ matrix.runs-on }}
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+    - uses: astral-sh/setup-uv@884ad927a57e558e7a70b92f2bccf9198a4be546 # v6
+    - run: python3 -u docker/install-pythons --dest pythons
+    - run: |
+        echo "$PWD/pythons/cp311-cp311/bin" >> "$GITHUB_PATH"
+        echo "$PWD/pythons/cp312-cp312/bin" >> "$GITHUB_PATH"
+        echo "$PWD/pythons/cp313-cp313/bin" >> "$GITHUB_PATH"
+        echo "$PWD/pythons/cp314-cp314/bin" >> "$GITHUB_PATH"
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+    - run: uv sync --no-dev
+    - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io --only-python 3.14
+    - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple --only-python 3.14
 
   collect-and-deploy:
     needs: [linux, macos]
