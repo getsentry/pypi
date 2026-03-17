@@ -629,7 +629,6 @@ def main() -> int:
     parser.add_argument("--packages-ini", default="packages.ini")
     parser.add_argument("--dest", default="dist")
     parser.add_argument("--upgrade-python", action="store_true")
-    parser.add_argument("--only-python", nargs="*")
     args = parser.parse_args()
 
     cfg = configparser.RawConfigParser()
@@ -642,12 +641,7 @@ def main() -> int:
 
     plat.setup_deps(args.packages_ini, args.dest, args.pypi_url)
 
-    versions: tuple[tuple[int, int], ...] = PYTHONS
-    if args.only_python:
-        only = {tuple(int(p) for p in v.split(".")) for v in args.only_python}
-        versions = tuple(v for v in versions if v in only)
-
-    pythons = [Python(version, _supported_tags(version)) for version in versions]
+    pythons = [Python(version, _supported_tags(version)) for version in PYTHONS]
 
     internal_wheels = _internal_wheels(args.pypi_url)
     built: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
@@ -714,6 +708,8 @@ def main() -> int:
                     print(f"!!! FAILED: {pkg_id}: {e}")
                     failures.append(pkg_id)
                     failed_names.add(package.name)
+                elif python.version == (3, 14):
+                    print(f"!!! WARNING (py3.14): {pkg_id}: {e}")
                 else:
                     raise
 
