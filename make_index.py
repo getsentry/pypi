@@ -121,7 +121,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"--previous-package-list-json={prev_json}",
                 f"--package-list-json={packages_json}",
                 f"--output-dir={args.dest}",
-                f'--packages-url={urllib.parse.urljoin(args.pypi_url, "wheels")}',
+                f"--packages-url={urllib.parse.urljoin(args.pypi_url, 'wheels')}",
                 "--title=sentry pypi",
                 "--logo=https://avatars.githubusercontent.com/u/1396951?s=24",
                 "--logo-width=36",
