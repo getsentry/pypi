@@ -19,7 +19,7 @@ jobs:
         - {arch: arm64, os: ubuntu-24.04-arm}
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
     - name: login
       run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'

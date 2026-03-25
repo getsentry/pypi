@@ -19,10 +19,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     container: ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: dist-linux-${{ matrix.arch }}
         path: dist/*
@@ -44,7 +44,7 @@ jobs:
     - run: uv sync --no-dev
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: dist-${{ matrix.runs-on }}
         path: dist/*
@@ -57,10 +57,10 @@ jobs:
       id-token: write
       contents: read
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
     - uses: astral-sh/setup-uv@884ad927a57e558e7a70b92f2bccf9198a4be546 # v6
     - run: uv sync --no-dev
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
       with:
         path: dist
     - run: uv run python3 -um make_index --pypi-url https://pypi.devinfra.sentry.io --dest index
