@@ -13,6 +13,7 @@ from pathlib import Path
 BUCKET = "gs://pypi.devinfra.sentry.io"
 CACHE_NO = ("--cache-control", "no-store")
 CACHE_FIVE_MINUTES = ("--cache-control", "public, max-age=300")
+CONTENT_TYPE_HTML = ("--content-type", "text/html; charset=utf-8")
 
 
 def normalize(name: str) -> str:
@@ -164,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
                 "storage",
                 "cp",
                 *CACHE_FIVE_MINUTES,
+                *CONTENT_TYPE_HTML,
                 str(new_index_path),
                 index_url,
             ),
