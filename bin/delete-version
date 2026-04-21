@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import re
 import shlex
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 BUCKET = "gs://pypi.devinfra.sentry.io"
@@ -36,6 +36,28 @@ def fetch(src: str, dest: str) -> None:
     subprocess.check_call(("gcloud", "storage", "cp", src, dest))
 
 
+_RED = "\033[31m"
+_GREEN = "\033[32m"
+_CYAN = "\033[36m"
+_RESET = "\033[0m"
+
+
+def print_diff(orig: Path, new: Path) -> None:
+    orig_lines = orig.read_text().splitlines(keepends=True)
+    new_lines = new.read_text().splitlines(keepends=True)
+    for line in difflib.unified_diff(
+        orig_lines, new_lines, fromfile=str(orig), tofile=str(new)
+    ):
+        if line.startswith("+"):
+            sys.stdout.write(f"{_GREEN}{line}{_RESET}")
+        elif line.startswith("-"):
+            sys.stdout.write(f"{_RED}{line}{_RESET}")
+        elif line.startswith("@@"):
+            sys.stdout.write(f"{_CYAN}{line}{_RESET}")
+        else:
+            sys.stdout.write(line)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Remove a specific version of a package from the PyPI mirror.",
@@ -62,11 +84,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Version : {args.version}")
     print()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp = Path(tmpdir)
+    new_packages_json_path = Path("packages.json.new")
+    new_index_path = Path("index.html.new")
 
+    try:
         # --- packages.json ---
-        packages_json_path = tmp / "packages.json"
+        packages_json_path = Path("packages.json.orig")
         print(f"Fetching {BUCKET}/packages.json ...")
         fetch(f"{BUCKET}/packages.json", str(packages_json_path))
 
@@ -94,33 +117,33 @@ def main(argv: list[str] | None = None) -> int:
         remove_filenames = {p["filename"] for p in to_remove}
         remaining = [p for p in packages if p["filename"] not in remove_filenames]
 
-        new_packages_json_path = tmp / "packages_new.json"
         new_packages_json_path.write_text(
             "\n".join(json.dumps(p) for p in remaining) + "\n"
         )
 
         # --- index.html ---
-        index_path = tmp / "index.html"
+        index_orig_path = Path("index.html.orig")
         print(f"Fetching {index_url} ...")
-        fetch(index_url, str(index_path))
+        fetch(index_url, str(index_orig_path))
 
-        index_lines = index_path.read_text().splitlines(keepends=True)
-        new_index_lines = []
-        removed_index_lines = []
-        for line in index_lines:
-            if any(fn in line for fn in remove_filenames):
-                removed_index_lines.append(line.rstrip())
-            else:
-                new_index_lines.append(line)
+        def _remove_li(match: re.Match[str]) -> str:
+            return (
+                ""
+                if any(fn in match.group() for fn in remove_filenames)
+                else match.group()
+            )
 
-        if removed_index_lines:
-            print(f"Lines to remove from index.html ({len(removed_index_lines)}):")
-            for line in removed_index_lines:
-                print(f"  {line.strip()}")
-            print()
+        new_index_text = re.sub(
+            r"[ \t]*<li>.*?</li>[ \t]*\n",
+            _remove_li,
+            index_orig_path.read_text(),
+            flags=re.DOTALL,
+        )
+        new_index_path.write_text(new_index_text)
 
-        new_index_path = tmp / "index_new.html"
-        new_index_path.write_text("".join(new_index_lines))
+        print_diff(packages_json_path, new_packages_json_path)
+        print_diff(index_orig_path, new_index_path)
+        print()
 
         # --- GCS writes ---
         print("Operations:")
@@ -156,6 +179,16 @@ def main(argv: list[str] | None = None) -> int:
                 ("gcloud", "storage", "rm", f"{BUCKET}/wheels/{filename}.metadata"),
                 dry_run,
             )
+
+    finally:
+        if args.execute:
+            for f in (
+                packages_json_path,
+                index_orig_path,
+                new_packages_json_path,
+                new_index_path,
+            ):
+                f.unlink(missing_ok=True)
 
     return 0
 
