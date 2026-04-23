@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import difflib
+import json
+import re
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+BUCKET = "gs://pypi.devinfra.sentry.io"
+CACHE_NO = ("--cache-control", "no-store")
+CACHE_FIVE_MINUTES = ("--cache-control", "public, max-age=300")
+CONTENT_TYPE_HTML = ("--content-type", "text/html; charset=utf-8")
+
+
+def normalize(name: str) -> str:
+    # PEP 427: wheel distribution name uses underscores
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
+def wheel_matches(filename: str, norm_name: str, version: str) -> bool:
+    return filename.startswith(f"{norm_name}-{version}-") and filename.endswith(".whl")
+
+
+def run(cmd: tuple[str, ...], dry_run: bool) -> None:
+    if dry_run:
+        print(f"  [dry-run] {shlex.join(cmd)}")
+    else:
+        print(f"  {shlex.join(cmd)}")
+        subprocess.check_call(cmd)
+
+
+def fetch(src: str, dest: str) -> None:
+    subprocess.check_call(("gcloud", "storage", "cp", src, dest))
+
+
+_RED = "\033[31m"
+_GREEN = "\033[32m"
+_CYAN = "\033[36m"
+_RESET = "\033[0m"
+
+
+def print_diff(orig: Path, new: Path) -> None:
+    orig_lines = orig.read_text().splitlines(keepends=True)
+    new_lines = new.read_text().splitlines(keepends=True)
+    for line in difflib.unified_diff(
+        orig_lines, new_lines, fromfile=str(orig), tofile=str(new)
+    ):
+        if line.startswith("+"):
+            sys.stdout.write(f"{_GREEN}{line}{_RESET}")
+        elif line.startswith("-"):
+            sys.stdout.write(f"{_RED}{line}{_RESET}")
+        elif line.startswith("@@"):
+            sys.stdout.write(f"{_CYAN}{line}{_RESET}")
+        else:
+            sys.stdout.write(line)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Remove a specific version of a package from the PyPI mirror.",
+    )
+    parser.add_argument("package", help="Package name (e.g. sentry-sdk)")
+    parser.add_argument("version", help="Version to remove (e.g. 2.58.0a1)")
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually perform the deletions (default: dry run)",
+    )
+    args = parser.parse_args(argv)
+
+    dry_run = not args.execute
+    norm_name = normalize(args.package)
+    # dumb-pypi uses hyphens for the simple/ directory name
+    pkg_slug = norm_name.replace("_", "-")
+    index_url = f"{BUCKET}/simple/{pkg_slug}/index.html"
+
+    if dry_run:
+        print("DRY RUN — pass --execute to make changes\n")
+
+    print(f"Package : {args.package} (normalized: {norm_name})")
+    print(f"Version : {args.version}")
+    print()
+
+    new_packages_json_path = Path("packages.json.new")
+    new_index_path = Path("index.html.new")
+
+    try:
+        # --- packages.json ---
+        packages_json_path = Path("packages.json.orig")
+        print(f"Fetching {BUCKET}/packages.json ...")
+        fetch(f"{BUCKET}/packages.json", str(packages_json_path))
+
+        packages = [
+            json.loads(line)
+            for line in packages_json_path.read_text().splitlines()
+            if line.strip()
+        ]
+        to_remove = [
+            p for p in packages if wheel_matches(p["filename"], norm_name, args.version)
+        ]
+
+        if not to_remove:
+            print(
+                f"No wheels found matching {norm_name}=={args.version} in packages.json",
+                file=sys.stderr,
+            )
+            return 1
+
+        print(f"Wheels to remove ({len(to_remove)}):")
+        for p in to_remove:
+            print(f"  {p['filename']}")
+        print()
+
+        remove_filenames = {p["filename"] for p in to_remove}
+        remaining = [p for p in packages if p["filename"] not in remove_filenames]
+
+        new_packages_json_path.write_text(
+            "\n".join(json.dumps(p) for p in remaining) + "\n"
+        )
+
+        # --- index.html ---
+        index_orig_path = Path("index.html.orig")
+        print(f"Fetching {index_url} ...")
+        fetch(index_url, str(index_orig_path))
+
+        def _remove_li(match: re.Match[str]) -> str:
+            return (
+                ""
+                if any(fn in match.group() for fn in remove_filenames)
+                else match.group()
+            )
+
+        new_index_text = re.sub(
+            r"[ \t]*<li>.*?</li>[ \t]*\n",
+            _remove_li,
+            index_orig_path.read_text(),
+            flags=re.DOTALL,
+        )
+        new_index_path.write_text(new_index_text)
+
+        print_diff(packages_json_path, new_packages_json_path)
+        print_diff(index_orig_path, new_index_path)
+        print()
+
+        # --- GCS writes ---
+        print("Operations:")
+        run(
+            (
+                "gcloud",
+                "storage",
+                "cp",
+                *CACHE_NO,
+                str(new_packages_json_path),
+                f"{BUCKET}/packages.json",
+            ),
+            dry_run,
+        )
+        run(
+            (
+                "gcloud",
+                "storage",
+                "cp",
+                *CACHE_FIVE_MINUTES,
+                *CONTENT_TYPE_HTML,
+                str(new_index_path),
+                index_url,
+            ),
+            dry_run,
+        )
+        for filename in sorted(remove_filenames):
+            run(
+                ("gcloud", "storage", "rm", f"{BUCKET}/wheels/{filename}"),
+                dry_run,
+            )
+            # also remove the .metadata sidecar uploaded alongside each wheel
+            run(
+                ("gcloud", "storage", "rm", f"{BUCKET}/wheels/{filename}.metadata"),
+                dry_run,
+            )
+
+    finally:
+        if args.execute:
+            for f in (
+                packages_json_path,
+                index_orig_path,
+                new_packages_json_path,
+                new_index_path,
+            ):
+                f.unlink(missing_ok=True)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
