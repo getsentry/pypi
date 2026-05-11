@@ -38,6 +38,7 @@ disallow_any_generics = true
 disallow_incomplete_defs = true
 disallow_untyped_defs = true
 no_implicit_optional = true
+scripts_are_modules = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 
