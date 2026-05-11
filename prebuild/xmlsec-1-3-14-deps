@@ -73,7 +73,6 @@ def main() -> int:
 
         with tarfile.open(fileobj=io.BytesIO(bts)) as tarf:
             tarf.extractall(tmpdir)
-        h = hashlib.sha256(bts).hexdigest()
 
         srcroot = os.path.join(tmpdir, "libxml2-2.12.9")
         subprocess.check_call(
