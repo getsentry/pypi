@@ -3,36 +3,38 @@ FROM python:3.11.4-slim-bullseye
 RUN : \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install \
-        -y --no-install-recommends \
-        automake \
-        ca-certificates \
-        clang \
-        curl \
-        dumb-init \
-        git \
-        libbz2-dev \
-        libdb-dev \
-        libexpat1-dev \
-        libffi-dev \
-        libgdbm-dev \
-        libjpeg-dev \
-        libltdl-dev \
-        liblzma-dev \
-        libncursesw5-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        libcurl4-openssl-dev \
-        libsasl2-dev \
-        libssl-dev \
-        libtool \
-        libzstd-dev \
-        make \
-        pkg-config \
-        uuid-dev \
-        xz-utils \
-        zlib1g-dev \
-        zstd \
+    -y --no-install-recommends \
+    automake \
+    ca-certificates \
+    clang \
+    curl \
+    dumb-init \
+    git \
+    libbz2-dev \
+    libdb-dev \
+    libexpat1-dev \
+    libffi-dev \
+    libgdbm-dev \
+    libjpeg-dev \
+    libltdl-dev \
+    liblzma-dev \
+    libncursesw5-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libcurl4-openssl-dev \
+    libsasl2-dev \
+    libssl-dev \
+    libtool \
+    libzstd-dev \
+    make \
+    pkg-config \
+    uuid-dev \
+    xz-utils \
+    zlib1g-dev \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
+
+RUN which cargo; ls -lh /usr/bin; ls -lh /usr/local/bin
 
 ENV \
     BUILD_IN_CONTAINER=1 \
