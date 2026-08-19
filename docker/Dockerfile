@@ -34,8 +34,6 @@ RUN : \
     zstd \
     && rm -rf /var/lib/apt/lists/*
 
-RUN which cargo; ls -lh /usr/bin; ls -lh /usr/local/bin
-
 ENV \
     BUILD_IN_CONTAINER=1 \
     PATH=/venv/bin:/opt/python/cp311-cp311/bin:/opt/python/cp312-cp312/bin:/opt/python/cp313-cp313/bin:/opt/python/cp314-cp314/bin:$PATH \
