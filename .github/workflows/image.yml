@@ -21,16 +21,24 @@ jobs:
     steps:
     - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
     - name: login
-      run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
+      env:
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: docker login --username "$GITHUB_ACTOR" --password-stdin ghcr.io <<< "$GITHUB_TOKEN"
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     - name: build
+      env:
+        ARCH: ${{ matrix.arch }}
+        SHA: ${{ github.sha }}
+        EVENT_NAME: ${{ github.event_name }}
+        REF: ${{ github.ref }}
       run: |
         cp pyproject.toml uv.lock docker/
         docker buildx build \
-            --cache-from ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
+            --cache-from ghcr.io/getsentry/pypi-manylinux-"$ARCH"-ci:latest \
             --cache-to type=inline \
-            --platform linux/${{ matrix.arch }} \
-            --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:${{ github.sha }} \
-            --tag ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
-            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && '--push' || '' }} \
+            --platform linux/"$ARCH" \
+            --tag ghcr.io/getsentry/pypi-manylinux-"$ARCH"-ci:"$SHA" \
+            --tag ghcr.io/getsentry/pypi-manylinux-"$ARCH"-ci:latest \
+            $( [ "$EVENT_NAME" = "push" ] && [ "$REF" = "refs/heads/main" ] && echo "--push" || echo "" ) \
             docker
