@@ -13,7 +13,7 @@ name = "auditwheel"
 version = "5.1.2"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "pyelftools", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "pyelftools" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/auditwheel-5.1.2-py3-none-any.whl", hash = "sha256:4d06aea3ab59a2b8aa733798ac221556a3f5c021fddc42e5de5bcef20201c031" },
@@ -32,7 +32,7 @@ name = "covdefaults"
 version = "2.3.0"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "coverage", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "coverage" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/covdefaults-2.3.0-py2.py3-none-any.whl", hash = "sha256:2832961f6ffcfe4b57c338bc3418a3526f495c26fb9c54565409c5532f7c41be" },
@@ -65,8 +65,8 @@ name = "delocate"
 version = "0.10.7"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "typing-extensions", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "packaging" },
+    { name = "typing-extensions" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/delocate-0.10.7-py3-none-any.whl", hash = "sha256:8251df9a9c9b57ef077a50bf1300f199845a6f7123ada59343d0150c41fa9da6" },
@@ -85,8 +85,8 @@ name = "dumb-pypi"
 version = "1.15.0"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "jinja2", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "jinja2" },
+    { name = "packaging" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/dumb_pypi-1.15.0-py2.py3-none-any.whl", hash = "sha256:050e0ea9b72cf8d229331601df90173b196452df74e2a9dfa44476f6f8afc52a" },
@@ -121,7 +121,7 @@ name = "jinja2"
 version = "3.1.6"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "markupsafe", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "markupsafe" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67" },
@@ -151,9 +151,9 @@ name = "mypy"
 version = "1.18.2"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "mypy-extensions", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pathspec", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "typing-extensions", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "mypy-extensions" },
+    { name = "pathspec" },
+    { name = "typing-extensions" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/mypy-1.18.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:807d9315ab9d464125aa9fcf6d84fde6e1dc67da0b6f80e7405506b8ac72bc7f" },
@@ -222,10 +222,10 @@ wheels = [
 
 [[package]]
 name = "pip"
-version = "26.0"
+version = "26.2"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 wheels = [
-    { url = "https://pypi.devinfra.sentry.io/wheels/pip-26.0-py3-none-any.whl", hash = "sha256:98436feffb9e31bc9339cf369fd55d3331b1580b6a6f1173bacacddcf9c34754" },
+    { url = "https://pypi.devinfra.sentry.io/wheels/pip-26.2-py3-none-any.whl", hash = "sha256:931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad" },
 ]
 
 [[package]]
@@ -249,11 +249,11 @@ name = "pre-commit"
 version = "4.2.0"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "cfgv", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "identify", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "nodeenv", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pyyaml", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "virtualenv", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "cfgv" },
+    { name = "identify" },
+    { name = "nodeenv" },
+    { name = "pyyaml" },
+    { name = "virtualenv" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/pre_commit-4.2.0-py2.py3-none-any.whl", hash = "sha256:a009ca7205f1eb497d10b845e52c838a98b6cdd2102a6c8e4540e94ee75c58bd" },
@@ -280,27 +280,27 @@ name = "pypi"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "auditwheel", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "delocate", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "dumb-pypi", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "auditwheel" },
+    { name = "delocate" },
+    { name = "dumb-pypi" },
+    { name = "packaging" },
     { name = "patchelf", marker = "sys_platform == 'linux'" },
-    { name = "pip", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "setuptools", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "virtualenv", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "wheel", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "pip" },
+    { name = "setuptools" },
+    { name = "virtualenv" },
+    { name = "wheel" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "covdefaults", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "coverage", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "mypy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pre-commit", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pytest", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "re-assert", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "ruff", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "shellcheck-py", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "covdefaults" },
+    { name = "coverage" },
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "re-assert" },
+    { name = "ruff" },
+    { name = "shellcheck-py" },
 ]
 
 [package.metadata]
@@ -333,10 +333,10 @@ name = "pytest"
 version = "9.0.3"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "iniconfig", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pluggy", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "pygments", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+    { name = "pygments" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/pytest-9.0.3-py3-none-any.whl", hash = "sha256:2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9" },
@@ -369,7 +369,7 @@ name = "re-assert"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "regex", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "regex" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/72/89/5801de335fa7a9cd9f402f66680b14be076d2084dd8244e3a3136a743262/re_assert-1.1.0.tar.gz", hash = "sha256:5172dfbd2047a15dff2347735dea7e495479cc7e58841199a4a4973256b20464", size = 3869, upload-time = "2020-02-25T00:05:34.116Z" }
 wheels = [
@@ -440,9 +440,9 @@ name = "virtualenv"
 version = "20.36.1"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "distlib", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "filelock", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
-    { name = "platformdirs", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "distlib" },
+    { name = "filelock" },
+    { name = "platformdirs" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/virtualenv-20.36.1-py3-none-any.whl", hash = "sha256:575a8d6b124ef88f6f51d56d656132389f961062a9177016a50e4f507bbcc19f" },
@@ -453,7 +453,7 @@ name = "wheel"
 version = "0.46.2"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
 dependencies = [
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "packaging" },
 ]
 wheels = [
     { url = "https://pypi.devinfra.sentry.io/wheels/wheel-0.46.2-py3-none-any.whl", hash = "sha256:33ae60725d69eaa249bc1982e739943c23b34b58d51f1cb6253453773aca6e65" },
