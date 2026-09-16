@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.parse
 import urllib.request
 import zipfile
@@ -39,6 +40,9 @@ BINARY_EXTS = frozenset(
 )
 
 DATA_SCRIPTS = re.compile(r"^[^/]+.data/scripts/[^/]+(?<!\.py)$")
+
+PUBLIC_PYPI_RETRY_TIMEOUT = 60 * 60
+PUBLIC_PYPI_INITIAL_RETRY_DELAY = 1
 
 
 def _supported_tags(version: tuple[int, int]) -> frozenset[Tag]:
@@ -557,6 +561,45 @@ def _produced_binary(wheel: str) -> bool:
             return False
 
 
+def _download_sdist(
+    package: Package,
+    python: Python,
+    dest: str,
+    *,
+    timeout: int | None = None,
+) -> None:
+    # A release PR can land before PyPI's simple index exposes the new version.
+    # Retry this lookup while the publication propagates, without retrying the
+    # actual build, where repeating a genuine build failure would not help.
+    pip = (python.exe, "-mpip")
+    cmd = (
+        *pip,
+        "download",
+        f"--dest={dest}",
+        "--index-url=https://pypi.org/simple",
+        "--no-deps",
+        f"--no-binary={package.name}",
+        f"{package.name}=={package.version}",
+    )
+    deadline = time.monotonic() + PUBLIC_PYPI_RETRY_TIMEOUT
+    delay: float = PUBLIC_PYPI_INITIAL_RETRY_DELAY
+
+    while True:
+        try:
+            subprocess.check_call(cmd, timeout=timeout)
+        except subprocess.CalledProcessError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise
+
+            delay = min(delay, remaining)
+            print(f"-> public PyPI download failed; retrying in {delay:g}s")
+            time.sleep(delay)
+            delay *= 2
+        else:
+            return
+
+
 def _build(
     package: Package,
     python: Python,
@@ -570,16 +613,10 @@ def _build(
         with plat.install(package), _prebuild(package, tmpdir):
             # download the sdist first such that we can build against our index
             sdist_dir = os.path.join(tmpdir, "sdist")
-            subprocess.check_call(
-                (
-                    *pip,
-                    "download",
-                    f"--dest={sdist_dir}",
-                    "--index-url=https://pypi.org/simple",
-                    "--no-deps",
-                    f"--no-binary={package.name}",
-                    f"{package.name}=={package.version}",
-                ),
+            _download_sdist(
+                package,
+                python,
+                sdist_dir,
                 timeout=timeout,
             )
             (sdist,) = os.listdir(sdist_dir)
