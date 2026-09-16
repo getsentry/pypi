@@ -155,8 +155,9 @@ def test_download_sdist_retries_public_pypi_lookup(tmp_path):
     failure = subprocess.CalledProcessError(1, ("pip",))
 
     with (
-        mock.patch.object(subprocess, "check_call", side_effect=[failure, failure, None])
-        as check_call,
+        mock.patch.object(
+            subprocess, "check_call", side_effect=[failure, failure, None]
+        ) as check_call,
         mock.patch.object(build.time, "sleep") as sleep,
     ):
         build._download_sdist(package, python, str(tmp_path))
