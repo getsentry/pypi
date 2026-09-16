@@ -50,18 +50,26 @@ jobs:
 
         import build
 
-        forced = {"cffi", "google-crc32c", "pyyaml"}
+        forced = {
+            ("cffi", "2.1.1"),
+            ("google-crc32c", "1.8.0"),
+            ("pyyaml", "6.0.3"),
+        }
         original_internal_wheels = build._internal_wheels
         original_download = build._download
 
         def internal_wheels(index):
             wheels = original_internal_wheels(index)
-            for name in forced:
-                wheels.pop(name, None)
+            for name, entries in wheels.items():
+                entries[:] = [
+                    entry
+                    for entry in entries
+                    if (name, str(entry[0])) not in forced
+                ]
             return wheels
 
         def download(package, python, dest):
-            if package.name in forced:
+            if (package.name, str(package.version)) in forced:
                 return None
             return original_download(package, python, dest)
 
