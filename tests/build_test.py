@@ -149,6 +149,49 @@ def test_get_internal_wheels():
     }
 
 
+def test_download_sdist_retries_public_pypi_lookup(tmp_path):
+    package = Package.make("a==1", {})
+    python = build.Python((3, 11), frozenset())
+    failure = subprocess.CalledProcessError(1, ("pip",))
+
+    with (
+        mock.patch.object(
+            subprocess, "check_call", side_effect=[failure, failure, None]
+        ) as check_call,
+        mock.patch.object(build.time, "sleep") as sleep,
+    ):
+        build._download_sdist(package, python, str(tmp_path))
+
+    assert check_call.call_count == 3
+    assert sleep.call_args_list == [mock.call(1), mock.call(2)]
+
+
+def test_download_sdist_stops_after_retry_budget(tmp_path):
+    package = Package.make("a==1", {})
+    python = build.Python((3, 11), frozenset())
+    failure = subprocess.CalledProcessError(1, ("pip",))
+    elapsed = 0.0
+    slept: list[float] = []
+
+    def monotonic() -> float:
+        return elapsed
+
+    def sleep(delay: float) -> None:
+        nonlocal elapsed
+        elapsed += delay
+        slept.append(delay)
+
+    with (
+        mock.patch.object(subprocess, "check_call", side_effect=failure),
+        mock.patch.object(build.time, "monotonic", side_effect=monotonic),
+        mock.patch.object(build.time, "sleep", side_effect=sleep),
+    ):
+        with pytest.raises(subprocess.CalledProcessError):
+            build._download_sdist(package, python, str(tmp_path))
+
+    assert sum(slept) == build.PUBLIC_PYPI_RETRY_TIMEOUT
+
+
 def test_brew_paths():
     out = b"""\
 /opt/homebrew/opt/openssl@1.1
