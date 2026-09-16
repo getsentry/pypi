@@ -43,6 +43,40 @@ jobs:
         echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
     - run: uv sync --no-dev
     - run: python3 -um build --pypi-url https://pypi.devinfra.sentry.io
+    - name: Smoke test forced package rebuilds
+      run: |
+        python3 - <<'PY'
+        import sys
+
+        import build
+
+        forced = {"cffi", "google-crc32c", "pyyaml"}
+        original_internal_wheels = build._internal_wheels
+        original_download = build._download
+
+        def internal_wheels(index):
+            wheels = original_internal_wheels(index)
+            for name in forced:
+                wheels.pop(name, None)
+            return wheels
+
+        def download(package, python, dest):
+            if package.name in forced:
+                return None
+            return original_download(package, python, dest)
+
+        build._internal_wheels = internal_wheels
+        build._download = download
+        sys.argv = [
+            "build",
+            "--pypi-url=https://pypi.devinfra.sentry.io",
+            "--dest=dist-smoke",
+        ]
+        raise SystemExit(build.main())
+        PY
+        python3 -um validate \
+            --index-url https://pypi.devinfra.sentry.io/simple \
+            --dist dist-smoke
     - run: python3 -um validate --index-url https://pypi.devinfra.sentry.io/simple
     - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
