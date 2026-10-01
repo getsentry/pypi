@@ -1,7 +1,7 @@
 pypi
 ====
 
-sentry internal pypi
+sentry pypi (public!)
 
 this repository contains the tools to import and/or build packages from public pypi for the
 platforms and achitectures required for sentry development.
