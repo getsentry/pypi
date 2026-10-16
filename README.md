@@ -12,26 +12,47 @@ this is not merely a mirror; we also build wheels for upstream dependencies that
 
 we offer prebuilt wheels so dev machines + ci do not have to build wheels themselves; they just download.
 
+## use the index
+
+The index URL is `https://pypi.devinfra.sentry.io/simple`. With uv, add it to `pyproject.toml`:
+
+```toml
+[[tool.uv.index]]
+url = "https://pypi.devinfra.sentry.io/simple"
+```
+
+With pip, pass `--index-url https://pypi.devinfra.sentry.io/simple`.
+
+The index serves wheels only, and only for the versions listed in `packages.ini`.
+If a version is not listed, installing it from this index fails.
+
+Wheels are built for CPython 3.11, 3.12, 3.13, and 3.14 on linux amd64, linux arm64, and macos.
 
 ## adding packages
 
-first, setup the dev environment:
+1. Set up the dev environment:
 
-```bash
-uv sync
-direnv allow
-```
+   ```bash
+   uv sync
+   direnv allow
+   ```
 
-packages are configured in the `packages.ini` file.
+   If you do not use direnv, prefix the commands below with `uv run`.
 
-the easiest way to add a package and its dependencies is to use:
+1. Add the package and its dependencies to `packages.ini`:
 
-```bash
-python3 -m add_pkg PKGNAME
-```
+   ```bash
+   python3 -m add_pkg PKGNAME
+   ```
 
-each section is an individual package and has some additional instructions which helps for
-building.
+   `add_pkg` resolves `PKGNAME` with `pip wheel`, then adds a `[name==version]` section for it and for each dependency.
+   A new section copies the options of the newest existing version of the same package.
+   `add_pkg` accepts several packages and pinned specifiers such as `PKGNAME==1.2.3`.
+
+1. Open a pull request. CI builds and validates the new wheels on every platform.
+   After the pull request merges to `main`, CI uploads the wheels to the index.
+
+Anyone in the getsentry Engineering team on GitHub can approve pull requests, but it's preferred to get somebody from your team with context to approve your PR.
 
 don't worry too much about the formatting, an auto-formatter will ensure the format is correct.
 
@@ -44,98 +65,8 @@ most packages won't need special build instructions and the section contents can
 [simplejson==3.17.6]
 ```
 
-**Anyone in the [Engineering team](https://github.com/orgs/getsentry/teams/engineering) can approve Pull Requests**, but it's preferred to get somebody from your team with context to approve your PR.
+If a package fails to build or validate, set the options in [the `packages.ini` reference](docs/packages-ini.md).
 
-### apt_requires / brew_requires
+## license
 
-some packages require special system-level build dependencies, these can be configured using
-`apt_requires` (linux) and `brew_requires` (macos)
-
-```ini
-[xmlsec==1.3.12]
-apt_requires =
-    libxmlsec1-dev
-    pkg-config
-brew_requires =
-    libxmlsec1
-    pkg-config
-```
-
-### custom_prebuild
-
-sometimes the dependencies aren't packaged for apt / brew and you need a custom
-script to set them up.  this script will be passed a single "prefix" directory
-(which contains the standard `bin` / `lib` / `include` / etc. structure).
-
-the script should set up whatever tools are necessary inside only that directory
-
-```ini
-[google-crc32c==1.3.0]
-custom_prebuild = prebuild/crc32c 1.1.2
-```
-
-### likely_binary_ignore
-
-when the sdist has source files of a compiled language (see BINARY_EXTS),
-we would expect compiled things (e.g. binary executables, shared objects)
-in the wheel. sometimes this isn't the case, and you can ignore those
-source files:
-
-
-```ini
-[salt==3006.6]
-likely_binary_ignore =
-    salt-3006.6/pkg/old/smartos/esky/sodium_grabber.c
-```
-
-### python_versions
-
-some packages are only intended for particular python versions (or don't
-otherwise build cleanly).  the builds can be filtered using `python_versions`
-(though usually you should try and upgrade the relevant package).
-
-```ini
-[backports-zoneinfo==0.2.1]
-python_versions = <3.9
-```
-
-
-## validation
-
-after building the packages will be checked that they can install and import
-
-### validate_extras
-
-sometimes you may need to hint the validation tooling of additional requirements
-
-an example is `black` which has a `blackd` top-level but requires an optional
-dependency to use (the `black[d]` extra).  you can hint at this via
-`validate_extras`
-
-```ini
-[black==22.3.0]
-validate_extras = d
-```
-
-### validate_incorrect_missing_deps
-
-sometimes packages incorrectly specify their dependencies.  you can use this
-option to add import-time dependencies (though you should try and send a PR to
-fix those packages!)
-
-one example is `dictpath` which depends on `six` but doesn't list it:
-
-```ini
-[dictpath==0.1.3]
-validate_incorrect_missing_deps = six
-```
-
-### validate_skip_modules
-
-this should usually not be used but sometimes you need to skip importing some
-top-level modules due to side-effects or weird runtime requirements
-
-```ini
-[pyuwsgi==2.0.20]
-validate_skip_imports = uwsgidecorators
-```
+[Apache 2.0](LICENSE)

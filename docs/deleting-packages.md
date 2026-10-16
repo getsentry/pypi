@@ -15,7 +15,7 @@ usually a deletion should only be done if there's a security concern.
    cp packages.json{,.bak}
    "${EDITOR:-vim}" packages.json
    git diff --no-index packages.json{.bak,}
-   gsutil -h 'Cache-Control: no store' cp packages.json gs://pypi.devinfra.sentry.io
+   gsutil -h 'Cache-Control: no-store' cp packages.json gs://pypi.devinfra.sentry.io
    ```
 
 1. (if removing the whole package) delete the index page for the package:

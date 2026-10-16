@@ -19,19 +19,19 @@ The argument is the full Python version (e.g., `3.14.3`). Derive the major.minor
 
 Edit these files to build ONLY the new Python version (this speeds up CI dramatically):
 
-### `build.py` line 35
+### `build.py`
 Change `PYTHONS` to only the new version:
 ```python
 PYTHONS = ((3, 14),)  # temporarily building only new version
 ```
 
-### `validate.py` line 19
-Same change:
+### `validate.py`
+Same change to `PYTHONS`:
 ```python
 PYTHONS = ((3, 14),)  # temporarily building only new version
 ```
 
-### `docker/install-pythons` line 9
+### `docker/install-pythons`
 Change `VERSIONS` to only the new full version:
 ```python
 VERSIONS = ("3.14.3",)  # temporarily building only new version
@@ -39,14 +39,9 @@ VERSIONS = ("3.14.3",)  # temporarily building only new version
 
 ### `docker/Dockerfile`
 
-**Line 39** — keep only the new cpython PATH entry (the base image already provides python3.11 on PATH):
+In the `ENV` `PATH` entry, keep only the new cpython path (the base image already provides python3.11 on PATH):
 ```dockerfile
     PATH=/venv/bin:/opt/python/cp314-cp314/bin:$PATH \
-```
-
-**Line 51** — use `python3.11` directly (provided by the base image) instead of the installed cpython path:
-```dockerfile
-    && python3.11 -m venv /venv \
 ```
 
 ### `.github/workflows/build.yml`
@@ -68,6 +63,7 @@ The production workflow uses pre-built `:latest` images. During a Python upgrade
     - uses: actions/checkout@v3
     - run: docker login --username '${{ github.actor }}' --password-stdin ghcr.io <<< '${{ secrets.GITHUB_TOKEN }}'
     - run: |
+        cp pyproject.toml uv.lock docker/
         docker buildx build \
             --cache-from ghcr.io/getsentry/pypi-manylinux-${{ matrix.arch }}-ci:latest \
             --cache-to type=inline \
@@ -90,7 +86,7 @@ The production workflow uses pre-built `:latest` images. During a Python upgrade
 ```yaml
     - run: |
         echo "$PWD/pythons/cp314-cp314/bin" >> "$GITHUB_PATH"
-        echo "$PWD/venv/bin" >> "$GITHUB_PATH"
+        echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 ```
 
 **Add `--upgrade-python` flag** to both linux and macos build commands:
@@ -230,7 +226,7 @@ Commit with a message like "revert single-version mode, build all python version
 
 ## Important notes
 
-- The `--upgrade-python` flag in `build.py` enables continue-on-failure mode with a 10-minute timeout per package. Without it, builds fail on first error (normal behavior).
+- The `--upgrade-python` flag in `build.py` enables continue-on-failure mode with a 10-minute timeout per package. Without it, builds fail on first error, except on Python 3.14, where `build.py` and `validate.py` print `!!! WARNING (py3.14)` and continue.
 - The `=== name==version@python`, `!!! FAILED: name==version: error`, and `!!! SKIPPED (newer version already failed): name==version` log lines are the markers used to parse results.
 - In `--upgrade-python` mode, packages are sorted newest-version-first within each name. If the newest version fails, all older versions are automatically skipped.
 - Do NOT try to comment out sections with `#` — the `format-packages-ini` pre-commit hook uses Python's `configparser` which strips all `#` comments. Instead, delete succeeded sections entirely.
