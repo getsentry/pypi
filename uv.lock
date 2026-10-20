@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "sys_platform == 'darwin' or sys_platform == 'linux'",
@@ -221,14 +221,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pip"
-version = "26.2"
-source = { registry = "https://pypi.devinfra.sentry.io/simple" }
-wheels = [
-    { url = "https://pypi.devinfra.sentry.io/wheels/pip-26.2-py3-none-any.whl", hash = "sha256:931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad" },
-]
-
-[[package]]
 name = "platformdirs"
 version = "4.3.8"
 source = { registry = "https://pypi.devinfra.sentry.io/simple" }
@@ -285,9 +277,7 @@ dependencies = [
     { name = "dumb-pypi" },
     { name = "packaging" },
     { name = "patchelf", marker = "sys_platform == 'linux'" },
-    { name = "pip" },
     { name = "setuptools" },
-    { name = "virtualenv" },
     { name = "wheel" },
 ]
 
@@ -310,9 +300,7 @@ requires-dist = [
     { name = "dumb-pypi", specifier = ">=1.15.0" },
     { name = "packaging", specifier = ">=21.3" },
     { name = "patchelf", marker = "sys_platform == 'linux'", specifier = ">=0.14.5" },
-    { name = "pip", specifier = ">=22.1.2" },
     { name = "setuptools", specifier = ">=67" },
-    { name = "virtualenv", specifier = ">=20.25.0" },
     { name = "wheel", specifier = ">=0.38.1" },
 ]
 
