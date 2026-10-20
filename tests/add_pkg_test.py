@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import subprocess
-import tempfile
 from unittest import mock
 
 import pytest
@@ -10,18 +9,18 @@ import add_pkg
 
 
 @pytest.fixture
-def pretend_pip(tmp_path):
-    tmp = tmp_path.joinpath("tmp_path")
-    tmp.mkdir()
+def pretend_uv():
+    resolved: list[str] = []
 
-    with mock.patch.object(tempfile, "TemporaryDirectory") as tmpdir_mck:
-        tmpdir_mck.return_value.__enter__.return_value = tmp
-        with mock.patch.object(subprocess, "check_call"):
-            yield tmp
+    def check_output(*args, **kwargs):
+        return "".join(f"{line}\n" for line in resolved).encode()
+
+    with mock.patch.object(subprocess, "check_output", side_effect=check_output):
+        yield resolved
 
 
-def test_new_pkg(pretend_pip, tmp_path, capsys):
-    pretend_pip.joinpath("a-1-py3-none-any.whl").touch()
+def test_new_pkg(pretend_uv, tmp_path, capsys):
+    pretend_uv.append("a==1")
 
     packages_ini = tmp_path.joinpath("packages.ini")
     packages_ini.write_text("[b==1]\n")
@@ -34,9 +33,9 @@ def test_new_pkg(pretend_pip, tmp_path, capsys):
     assert out == "resolving a...\na==1: adding...\n"
 
 
-def test_new_pkg_multiple_packages(pretend_pip, tmp_path, capsys):
-    pretend_pip.joinpath("a-1-py3-none-any.whl").touch()
-    pretend_pip.joinpath("c-2-py3-none-any.whl").touch()
+def test_new_pkg_multiple_packages(pretend_uv, tmp_path, capsys):
+    pretend_uv.append("a==1")
+    pretend_uv.append("c==2")
 
     packages_ini = tmp_path.joinpath("packages.ini")
     packages_ini.write_text("[b==1]\n")
@@ -49,8 +48,8 @@ def test_new_pkg_multiple_packages(pretend_pip, tmp_path, capsys):
     assert out == "resolving a c...\na==1: adding...\nc==2: adding...\n"
 
 
-def test_pkg_already_present(pretend_pip, tmp_path, capsys):
-    pretend_pip.joinpath("a-1-py3-none-any.whl").touch()
+def test_pkg_already_present(pretend_uv, tmp_path, capsys):
+    pretend_uv.append("a==1")
 
     packages_ini = tmp_path.joinpath("packages.ini")
     packages_ini.write_text("[a==1]\n")
@@ -63,8 +62,8 @@ def test_pkg_already_present(pretend_pip, tmp_path, capsys):
     assert out == "resolving a...\na==1: already present!\n"
 
 
-def test_pkg_copied_from_previous_version(pretend_pip, tmp_path, capsys):
-    pretend_pip.joinpath("a-2-py3-none-any.whl").touch()
+def test_pkg_copied_from_previous_version(pretend_uv, tmp_path, capsys):
+    pretend_uv.append("a==2")
 
     packages_ini = tmp_path.joinpath("packages.ini")
     packages_ini.write_text("[a==1]\napt_packages = zlib1g-dev\n")
@@ -83,8 +82,8 @@ def test_skip_resolve(tmp_path, capsys):
     packages_ini = tmp_path.joinpath("packages.ini")
     packages_ini.write_text("[a==1]\n")
 
-    # an attempt to use `pip` should raise!
-    with mock.patch.object(subprocess, "check_call", side_effect=AssertionError):
+    # an attempt to resolve should raise!
+    with mock.patch.object(subprocess, "check_output", side_effect=AssertionError):
         ret = add_pkg.main(("a==2", "--skip-resolve", f"--packages-ini={packages_ini}"))
         assert ret == 0
 

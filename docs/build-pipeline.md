@@ -9,9 +9,13 @@ It skips a package version when the index already has a wheel for it that matche
 It also skips Python versions that the section's `python_versions` excludes.
 For each remaining package and Python version in `PYTHONS`, `build.py` does this:
 
-1. Downloads a wheel from public PyPI.
-   It discards the wheel when a compiled file in it has the wrong architecture.
-1. If no usable wheel exists, downloads the sdist from public PyPI and builds it with `pip wheel`.
+1. Reads the release from public PyPI's JSON API, retrying for up to one hour until the release is visible.
+   It skips Python versions that the release's `Requires-Python` excludes, because no installer would install the package there.
+   It fails right away when `Requires-Python` excludes every build Python.
+1. Downloads the most specific compatible wheel that the JSON API lists, and checks its sha256.
+   It discards a wheel when a compiled file in it has the wrong architecture, then tries the next compatible wheel.
+1. If no usable wheel exists, downloads the sdist that the JSON API lists and builds it with `uv build --wheel`.
+   It fails right away when the release has no sdist.
    Build dependencies come from this index, not from public PyPI.
 1. Fails when the sdist looks like it has compiled code but the wheel has no `.so` file.
    `likely_binary_ignore` exempts files from this check.
@@ -21,14 +25,13 @@ On linux, `build.py` re-runs itself inside the `ghcr.io/getsentry/pypi-manylinux
 The `image` workflow (`.github/workflows/image.yml`) builds that image from `docker/` and pushes it only from `main`.
 So a pull request that changes `docker/` builds packages with the old `:latest` image.
 
-The sdist download retries for up to one hour, because a new release can reach PyPI's simple index after its release PR lands.
-
 ## validate
 
-`validate.py` installs each built wheel into a fresh virtualenv for every Python version the wheel supports.
+`validate.py` installs each built wheel into a fresh `uv venv` with `uv pip install` for every Python version the wheel supports.
 It installs only binary wheels from this index plus the just-built wheels.
 So every dependency of a new package must also be in `packages.ini`.
 Then it imports each top-level module of the wheel.
+It skips Python versions that the wheel's `Requires-Python` excludes.
 
 ## deploy
 
