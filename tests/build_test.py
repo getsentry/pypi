@@ -258,6 +258,19 @@ def test_fetch_verifies_sha256(tmp_path):
     assert excinfo.value.code == "a-1-py3-none-any.whl: sha256 mismatch"
 
 
+def test_package_ignore_requires_python():
+    package = Package.make("a==1", {"ignore_requires_python": "true"})
+    assert package.ignore_requires_python is True
+    assert Package.make("a==1", {}).ignore_requires_python is False
+
+
+def test_package_ignore_requires_python_invalid():
+    with pytest.raises(ValueError) as excinfo:
+        Package.make("a==1", {"ignore_requires_python": "yes"})
+    (msg,) = excinfo.value.args
+    assert msg == "a==1: ignore_requires_python must be `true`"
+
+
 def test_brew_paths():
     out = b"""\
 /opt/homebrew/opt/openssl@1.1

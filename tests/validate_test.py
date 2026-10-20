@@ -119,3 +119,22 @@ def test_requires_python_missing_allows_everything(tmp_path):
         zipf.writestr("a-1.dist-info/METADATA", "Metadata-Version: 2.1\nName: a\n")
 
     assert validate._requires_python(str(whl)) == SpecifierSet()
+
+
+@pytest.mark.parametrize(
+    ("spec", "expected"),
+    (
+        ("==3.13.16", "3.13.16"),
+        (">=3.13", "3.13"),
+        (">=3.13,<3.14", "3.13"),
+        ("==3.13.*", "3.13"),
+        ("", None),
+    ),
+)
+def test_satisfying_version(spec, expected):
+    assert validate._satisfying_version(SpecifierSet(spec)) == expected
+
+
+def test_info_ignore_requires_python():
+    info = validate.Info.from_dct({"ignore_requires_python": "true"})
+    assert info.ignore_requires_python is True

@@ -69,6 +69,22 @@ python_versions = <3.12
 You do not need `python_versions` to repeat a package's `Requires-Python`.
 `build.py` and `validate.py` already skip the Python versions that `Requires-Python` excludes.
 
+### ignore_requires_python
+
+some releases publish a `Requires-Python` that none of the build pythons
+satisfy, such as an exact patch pin.  `ignore_requires_python = true` makes
+`build.py` and `validate.py` treat the package as if it supported every python.
+`validate.py` installs it with `uv pip install --python-version` set to a
+version that `Requires-Python` allows.  pair it with `python_versions` to keep
+the pythons the package really supports, and prefer fixing the package's
+metadata in the next release.
+
+```ini
+[sentry-devenv==1.30.0]
+ignore_requires_python = true
+python_versions = >=3.13
+```
+
 ## validation options
 
 after building the packages will be checked that they can install and import

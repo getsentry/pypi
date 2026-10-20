@@ -28,6 +28,7 @@ class Info(NamedTuple):
     validate_extras: str | None
     validate_incorrect_missing_deps: tuple[str, ...]
     validate_skip_imports: tuple[str, ...]
+    ignore_requires_python: bool = False
 
     @classmethod
     def from_dct(cls, dct: Mapping[str, str]) -> Info:
@@ -38,6 +39,7 @@ class Info(NamedTuple):
                 dct.get("validate_incorrect_missing_deps", "").split()
             ),
             validate_skip_imports=tuple(dct.get("validate_skip_imports", "").split()),
+            ignore_requires_python=dct.get("ignore_requires_python") == "true",
         )
 
 
@@ -92,6 +94,16 @@ def _requires_python(whl: str) -> SpecifierSet:
             raise NotImplementedError("need METADATA")
 
 
+def _satisfying_version(spec: SpecifierSet) -> str | None:
+    """a python version that `spec` allows, picked from its own bounds"""
+    for specifier in spec:
+        candidate = specifier.version.removesuffix(".*")
+        if spec.contains(candidate, prereleases=True):
+            return candidate
+    else:
+        return None
+
+
 def _top_imports(whl: str) -> list[str]:
     with zipfile.ZipFile(whl) as zipf:
         dist_info_names = {
@@ -119,6 +131,7 @@ def _validate(
     filename: str,
     info: Info,
     index_url: str,
+    python_version_override: str | None = None,
 ) -> None:
     print(f"validating {python}: {filename}")
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -153,6 +166,11 @@ def _validate(
                 "--quiet",
                 "--no-cache",
                 f"--python={py}",
+                *(
+                    (f"--python-version={python_version_override}",)
+                    if python_version_override is not None
+                    else ()
+                ),
                 "--only-binary=:all:",
                 f"--default-index={index_url}",
                 # allow just-built wheels to count too
@@ -189,6 +207,12 @@ def main() -> int:
         name, version, _, wheel_tags = parse_wheel_filename(filename)
         info = packages[(name, version)]
         requires_python = _requires_python(os.path.join(args.dist, filename))
+        if info.ignore_requires_python:
+            # install as if the interpreter matched `Requires-Python`
+            python_version_override = _satisfying_version(requires_python)
+            requires_python = SpecifierSet()
+        else:
+            python_version_override = None
         for python in _pythons_to_check(wheel_tags):
             # e.g. "python3.11" -> "3.11"
             py_version = python[len("python") :]
@@ -204,6 +228,7 @@ def main() -> int:
                     filename=os.path.join(args.dist, filename),
                     info=info,
                     index_url=args.index_url,
+                    python_version_override=python_version_override,
                 )
             except subprocess.CalledProcessError:
                 if python == "python3.14":

@@ -124,6 +124,7 @@ class Package(NamedTuple):
     custom_prebuild: tuple[str, ...]
     likely_binary_ignore: tuple[str, ...]
     python_versions: SpecifierSet
+    ignore_requires_python: bool = False
 
     def satisfied_by(
         self,
@@ -146,6 +147,9 @@ class Package(NamedTuple):
         custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
         likely_binary_ignore = tuple(dct.pop("likely_binary_ignore", "").split())
         python_versions = dct.pop("python_versions", "")
+        ignore_requires_python = dct.pop("ignore_requires_python", "")
+        if ignore_requires_python not in ("", "true"):
+            raise ValueError(f"{key}: ignore_requires_python must be `true`")
         # ignore validate-only settings
         for setting in (
             "validate_extras",
@@ -164,6 +168,7 @@ class Package(NamedTuple):
             custom_prebuild=custom_prebuild,
             likely_binary_ignore=likely_binary_ignore,
             python_versions=SpecifierSet(python_versions),
+            ignore_requires_python=bool(ignore_requires_python),
         )
 
 
@@ -773,6 +778,8 @@ def main() -> int:
                 if pkg_id not in releases:
                     releases[pkg_id] = _public_release(package)
                 release = releases[pkg_id]
+                if package.ignore_requires_python:
+                    release = release._replace(requires_python=SpecifierSet())
 
                 if not any(
                     release.supports(p)
