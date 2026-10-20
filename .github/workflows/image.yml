@@ -18,6 +18,10 @@ jobs:
         - {arch: amd64, os: ubuntu-latest}
         - {arch: arm64, os: ubuntu-24.04-arm}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      # push to ghcr.io on main
+      packages: write
     steps:
     - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
     - name: login
