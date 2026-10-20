@@ -15,6 +15,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -25,6 +26,7 @@ from collections.abc import MutableMapping
 from typing import ContextManager
 from typing import NamedTuple
 
+from packaging.specifiers import InvalidSpecifier
 from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.tags import compatible_tags
@@ -67,6 +69,25 @@ class Python(NamedTuple):
     @property
     def exe(self) -> str:
         return "python{}.{}".format(*self.version)
+
+    @property
+    def full_version(self) -> str:
+        return _python_full_version(self.exe)
+
+
+@functools.cache
+def _python_full_version(exe: str) -> str:
+    cmd = (exe, "-c", "import platform; print(platform.python_version())")
+    return subprocess.check_output(cmd).decode().strip()
+
+
+class Release(NamedTuple):
+    requires_python: SpecifierSet
+    has_sdist: bool
+    wheel_tags: frozenset[Tag]
+
+    def supports(self, python: Python) -> bool:
+        return self.requires_python.contains(python.full_version, prereleases=True)
 
 
 class Package(NamedTuple):
@@ -118,6 +139,50 @@ class Package(NamedTuple):
             likely_binary_ignore=likely_binary_ignore,
             python_versions=SpecifierSet(python_versions),
         )
+
+
+def _public_pypi_retry_delays() -> Generator[float]:
+    # A release PR can land before public PyPI exposes the new version.
+    # Yield backoff delays while the publication propagates.
+    deadline = time.monotonic() + PUBLIC_PYPI_RETRY_TIMEOUT
+    delay: float = PUBLIC_PYPI_INITIAL_RETRY_DELAY
+    while (remaining := deadline - time.monotonic()) > 0:
+        delay = min(delay, remaining)
+        yield delay
+        delay *= 2
+
+
+def _public_release(package: Package) -> Release:
+    url = f"https://pypi.org/pypi/{package.name}/{package.version}/json"
+    for delay in _public_pypi_retry_delays():
+        try:
+            resp = urllib.request.urlopen(url)
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+            print(f"-> not on public PyPI yet; retrying in {delay:g}s")
+            time.sleep(delay)
+        else:
+            break
+    else:
+        raise SystemExit(f"{package.name}=={package.version}: not on public PyPI")
+
+    data = json.load(resp)
+    try:
+        requires_python = SpecifierSet(data["info"]["requires_python"] or "")
+    except InvalidSpecifier:
+        requires_python = SpecifierSet()
+
+    wheel_tags: set[Tag] = set()
+    for url_info in data["urls"]:
+        if url_info["packagetype"] == "bdist_wheel":
+            wheel_tags.update(parse_wheel_filename(url_info["filename"])[3])
+
+    return Release(
+        requires_python=requires_python,
+        has_sdist=any(u["packagetype"] == "sdist" for u in data["urls"]),
+        wheel_tags=frozenset(wheel_tags),
+    )
 
 
 def _add_wheel(d: dict[str, list[tuple[Version, frozenset[Tag]]]], f: str) -> None:
@@ -568,9 +633,8 @@ def _download_sdist(
     *,
     timeout: int | None = None,
 ) -> None:
-    # A release PR can land before PyPI's simple index exposes the new version.
-    # Retry this lookup while the publication propagates, without retrying the
-    # actual build, where repeating a genuine build failure would not help.
+    # Retry only this lookup, not the actual build, where repeating a genuine
+    # build failure would not help.
     pip = (python.exe, "-mpip")
     cmd = (
         *pip,
@@ -581,23 +645,39 @@ def _download_sdist(
         f"--no-binary={package.name}",
         f"{package.name}=={package.version}",
     )
-    deadline = time.monotonic() + PUBLIC_PYPI_RETRY_TIMEOUT
-    delay: float = PUBLIC_PYPI_INITIAL_RETRY_DELAY
-
-    while True:
+    for delay in _public_pypi_retry_delays():
         try:
             subprocess.check_call(cmd, timeout=timeout)
         except subprocess.CalledProcessError:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise
-
-            delay = min(delay, remaining)
             print(f"-> public PyPI download failed; retrying in {delay:g}s")
             time.sleep(delay)
-            delay *= 2
         else:
             return
+
+    subprocess.check_call(cmd, timeout=timeout)
+
+
+def _download_wheel_only(
+    package: Package,
+    python: Python,
+    release: Release,
+    dest: str,
+) -> str:
+    pkg_id = f"{package.name}=={package.version}"
+    if not release.wheel_tags & python.tags:
+        raise SystemExit(
+            f"{pkg_id}: no sdist and no wheel for python {python.version_string}"
+        )
+
+    # public PyPI lists a matching wheel but the simple index may still lag
+    for delay in _public_pypi_retry_delays():
+        print(f"-> public PyPI wheel download failed; retrying in {delay:g}s")
+        time.sleep(delay)
+        downloaded_wheel = _download(package, python, dest)
+        if downloaded_wheel is not None:
+            return downloaded_wheel
+
+    raise SystemExit(f"{pkg_id}: could not download wheel from public PyPI")
 
 
 def _build(
@@ -688,6 +768,7 @@ def main() -> int:
     failed_names: set[str] = set()
 
     all_packages = [Package.make(k, cfg[k]) for k in cfg.sections()]
+    releases: dict[str, Release] = {}
 
     if args.upgrade_python:
         # sort newest versions first within each package name so we can
@@ -721,8 +802,30 @@ def main() -> int:
             print("-> just built!")
         else:
             try:
+                if pkg_id not in releases:
+                    releases[pkg_id] = _public_release(package)
+                release = releases[pkg_id]
+
+                if not any(
+                    release.supports(p)
+                    for p in pythons
+                    if p.version_string in package.python_versions
+                ):
+                    raise SystemExit(
+                        f"{pkg_id}: requires-python {release.requires_python} "
+                        f"matches none of the build pythons"
+                    )
+                elif not release.supports(python):
+                    print(f"-> skipping: requires-python {release.requires_python}")
+                    continue
+
                 print("-> building...")
                 downloaded_wheel = _download(package, python, args.dest)
+                if downloaded_wheel is None and not release.has_sdist:
+                    downloaded_wheel = _download_wheel_only(
+                        package, python, release, args.dest
+                    )
+
                 if downloaded_wheel is not None:
                     _add_wheel(built, downloaded_wheel)
                     print(f"-> downloaded! {downloaded_wheel}")

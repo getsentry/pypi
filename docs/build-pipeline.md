@@ -9,6 +9,9 @@ It skips a package version when the index already has a wheel for it that matche
 It also skips Python versions that the section's `python_versions` excludes.
 For each remaining package and Python version in `PYTHONS`, `build.py` does this:
 
+1. Reads the release from public PyPI's JSON API, retrying for up to one hour until the release is visible.
+   It skips Python versions that the release's `Requires-Python` excludes, because pip would never install the package there.
+   It fails right away when `Requires-Python` excludes every build Python.
 1. Downloads a wheel from public PyPI.
    It discards the wheel when a compiled file in it has the wrong architecture.
 1. If no usable wheel exists, downloads the sdist from public PyPI and builds it with `pip wheel`.
@@ -22,6 +25,7 @@ The `image` workflow (`.github/workflows/image.yml`) builds that image from `doc
 So a pull request that changes `docker/` builds packages with the old `:latest` image.
 
 The sdist download retries for up to one hour, because a new release can reach PyPI's simple index after its release PR lands.
+For a release with no sdist, the wheel download retries instead, but only when public PyPI lists a wheel that matches the Python version.
 
 ## validate
 
@@ -29,6 +33,7 @@ The sdist download retries for up to one hour, because a new release can reach P
 It installs only binary wheels from this index plus the just-built wheels.
 So every dependency of a new package must also be in `packages.ini`.
 Then it imports each top-level module of the wheel.
+It skips Python versions that the wheel's `Requires-Python` excludes.
 
 ## deploy
 

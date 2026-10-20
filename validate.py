@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import configparser
+import email.parser
+import functools
 import os.path
 import re
 import subprocess
@@ -12,6 +14,7 @@ from collections.abc import Mapping
 from typing import NamedTuple
 
 import packaging.tags
+from packaging.specifiers import InvalidSpecifier
 from packaging.specifiers import SpecifierSet
 from packaging.tags import Tag
 from packaging.utils import parse_wheel_filename
@@ -68,6 +71,26 @@ def _pythons_to_check(tags: frozenset[Tag]) -> tuple[str, ...]:
         raise AssertionError(f"no interpreters found for {tags}")
     else:
         return tuple(sorted(ret))
+
+
+@functools.cache
+def _python_full_version(python: str) -> str:
+    cmd = (python, "-c", "import platform; print(platform.python_version())")
+    return subprocess.check_output(cmd).decode().strip()
+
+
+def _requires_python(whl: str) -> SpecifierSet:
+    with zipfile.ZipFile(whl) as zipf:
+        for name in zipf.namelist():
+            if DIST_INFO_RE.match(name) and name.endswith("/METADATA"):
+                with zipf.open(name) as f:
+                    metadata = email.parser.BytesHeaderParser().parse(f)
+                try:
+                    return SpecifierSet(metadata.get("Requires-Python", ""))
+                except InvalidSpecifier:
+                    return SpecifierSet()
+        else:
+            raise NotImplementedError("need METADATA")
 
 
 def _top_imports(whl: str) -> list[str]:
@@ -167,10 +190,15 @@ def main() -> int:
     for filename in sorted(os.listdir(args.dist)):
         name, version, _, wheel_tags = parse_wheel_filename(filename)
         info = packages[(name, version)]
+        requires_python = _requires_python(os.path.join(args.dist, filename))
         for python in _pythons_to_check(wheel_tags):
             # e.g. "python3.11" -> "3.11"
             py_version = python[len("python") :]
             if py_version not in info.python_versions:
+                continue
+            elif not requires_python.contains(
+                _python_full_version(python), prereleases=True
+            ):
                 continue
             try:
                 _validate(
