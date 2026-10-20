@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import argparse
 import configparser
-import os
 import subprocess
 import sys
-import tempfile
 from collections.abc import Sequence
 
-from packaging.utils import parse_wheel_filename
+from packaging.utils import canonicalize_name
+from packaging.version import Version
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -31,23 +30,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             deps.append((name, version))
     else:
         print(f"resolving {' '.join(args.deps)}...")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            subprocess.check_call(
-                (
-                    sys.executable,
-                    "-mpip",
-                    "wheel",
-                    "--quiet",
-                    "--no-cache-dir",
-                    f"--wheel-dir={tmpdir}",
-                    *args.deps,
-                )
-            )
+        out = subprocess.check_output(
+            (
+                "uv",
+                "pip",
+                "compile",
+                "--no-config",
+                "--quiet",
+                "--no-header",
+                "--no-annotate",
+                f"--python={sys.executable}",
+                "--default-index=https://pypi.org/simple",
+                "-",
+            ),
+            input="\n".join(args.deps).encode(),
+        )
 
-            deps = []
-            for filename in sorted(os.listdir(tmpdir)):
-                name, version, _, _ = parse_wheel_filename(filename)
-                deps.append((name, str(version)))
+        deps = []
+        for line in out.decode().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                name, _, version = line.partition("==")
+                deps.append((canonicalize_name(name), str(Version(version))))
 
     cfg = configparser.ConfigParser()
     assert cfg.read(args.packages_ini)

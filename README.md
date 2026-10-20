@@ -45,7 +45,7 @@ Wheels are built for CPython 3.11, 3.12, 3.13, and 3.14 on linux amd64, linux ar
    python3 -m add_pkg PKGNAME
    ```
 
-   `add_pkg` resolves `PKGNAME` with `pip wheel`, then adds a `[name==version]` section for it and for each dependency.
+   `add_pkg` resolves `PKGNAME` with `uv pip compile`, then adds a `[name==version]` section for it and for each dependency.
    A new section copies the options of the newest existing version of the same package.
    `add_pkg` accepts several packages and pinned specifiers such as `PKGNAME==1.2.3`.
 

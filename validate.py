@@ -7,7 +7,6 @@ import functools
 import os.path
 import re
 import subprocess
-import sys
 import tempfile
 import zipfile
 from collections.abc import Mapping
@@ -129,14 +128,12 @@ def _validate(
 
         subprocess.check_call(
             (
-                sys.executable,
-                "-mvirtualenv",
-                "--no-periodic-update",
-                "--pip=embed",
-                "--setuptools=embed",
-                "--wheel=embed",
+                "uv",
+                "venv",
+                "--no-config",
                 "--quiet",
                 f"--python={python}",
+                "--python-preference=only-system",
                 venv,
             )
         )
@@ -149,14 +146,15 @@ def _validate(
 
         subprocess.check_call(
             (
-                py,
-                "-mpip",
+                "uv",
+                "pip",
                 "install",
+                "--no-config",
                 "--quiet",
-                "--no-cache-dir",
-                "--disable-pip-version-check",
+                "--no-cache",
+                f"--python={py}",
                 "--only-binary=:all:",
-                f"--index-url={index_url}",
+                f"--default-index={index_url}",
                 # allow just-built wheels to count too
                 f"--find-links={os.path.dirname(filename)}",
                 install_target,

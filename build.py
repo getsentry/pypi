@@ -4,6 +4,7 @@ import argparse
 import configparser
 import contextlib
 import functools
+import hashlib
 import itertools
 import json
 import os.path
@@ -47,15 +48,18 @@ PUBLIC_PYPI_RETRY_TIMEOUT = 60 * 60
 PUBLIC_PYPI_INITIAL_RETRY_DELAY = 1
 
 
-def _supported_tags(version: tuple[int, int]) -> frozenset[Tag]:
+def _ordered_supported_tags(version: tuple[int, int]) -> tuple[Tag, ...]:
+    # most preferred first
     # ignore the generic `linux_x86_64` / `linux_aarch64` tags
     platforms = [plat for plat in platform_tags() if not plat.startswith("linux_")]
-    return frozenset(
-        (
-            *cpython_tags(version, platforms=platforms),
-            *compatible_tags(version, platforms=platforms),
-        )
+    return (
+        *cpython_tags(version, platforms=platforms),
+        *compatible_tags(version, platforms=platforms),
     )
+
+
+def _supported_tags(version: tuple[int, int]) -> frozenset[Tag]:
+    return frozenset(_ordered_supported_tags(version))
 
 
 class Python(NamedTuple):
@@ -81,13 +85,35 @@ def _python_full_version(exe: str) -> str:
     return subprocess.check_output(cmd).decode().strip()
 
 
+class ReleaseFile(NamedTuple):
+    filename: str
+    url: str
+    sha256: str
+
+
 class Release(NamedTuple):
     requires_python: SpecifierSet
-    has_sdist: bool
-    wheel_tags: frozenset[Tag]
+    sdist: ReleaseFile | None
+    wheels: tuple[ReleaseFile, ...]
 
     def supports(self, python: Python) -> bool:
         return self.requires_python.contains(python.full_version, prereleases=True)
+
+    def wheels_for(self, python: Python) -> list[ReleaseFile]:
+        """compatible wheels, most preferred first"""
+        priority = {
+            tag: i for i, tag in enumerate(_ordered_supported_tags(python.version))
+        }
+        ranked = []
+        for wheel in self.wheels:
+            ranks = [
+                priority[tag]
+                for tag in parse_wheel_filename(wheel.filename)[3]
+                if tag in priority
+            ]
+            if ranks:
+                ranked.append((min(ranks), wheel))
+        return [wheel for _, wheel in sorted(ranked)]
 
 
 class Package(NamedTuple):
@@ -173,16 +199,34 @@ def _public_release(package: Package) -> Release:
     except InvalidSpecifier:
         requires_python = SpecifierSet()
 
-    wheel_tags: set[Tag] = set()
+    sdist = None
+    wheels = []
     for url_info in data["urls"]:
-        if url_info["packagetype"] == "bdist_wheel":
-            wheel_tags.update(parse_wheel_filename(url_info["filename"])[3])
+        release_file = ReleaseFile(
+            filename=url_info["filename"],
+            url=url_info["url"],
+            sha256=url_info["digests"]["sha256"],
+        )
+        if url_info["packagetype"] == "sdist":
+            sdist = release_file
+        elif url_info["packagetype"] == "bdist_wheel":
+            wheels.append(release_file)
 
-    return Release(
-        requires_python=requires_python,
-        has_sdist=any(u["packagetype"] == "sdist" for u in data["urls"]),
-        wheel_tags=frozenset(wheel_tags),
-    )
+    return Release(requires_python=requires_python, sdist=sdist, wheels=tuple(wheels))
+
+
+def _fetch(release_file: ReleaseFile, dest: str) -> str:
+    os.makedirs(dest, exist_ok=True)
+    filename = os.path.join(dest, release_file.filename)
+    sha256 = hashlib.sha256()
+    with urllib.request.urlopen(release_file.url) as resp, open(filename, "wb") as f:
+        while chunk := resp.read(64 * 1024):
+            sha256.update(chunk)
+            f.write(chunk)
+
+    if sha256.hexdigest() != release_file.sha256:
+        raise SystemExit(f"{release_file.filename}: sha256 mismatch")
+    return filename
 
 
 def _add_wheel(d: dict[str, list[tuple[Version, frozenset[Tag]]]], f: str) -> None:
@@ -463,39 +507,21 @@ def _check_arch(filename: str) -> str | None:
     return None
 
 
-def _download(package: Package, python: Python, dest: str) -> str | None:
+def _download(release: Release, python: Python, dest: str) -> str | None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        pip = (python.exe, "-mpip")
-
-        # first try to download the architecture-specific wheel
+        # try the most specific wheel first
         # it may be invalidated due to being packaged for the wrong arch
-        # in that case we'll try to additionally download a purelib wheel
-        for opt in ((), ("--platform=any",)):
-            if not subprocess.call(
-                (
-                    *pip,
-                    "download",
-                    f"--dest={tmpdir}",
-                    "--index-url=https://pypi.org/simple",
-                    "--no-deps",
-                    "--only-binary=:all:",
-                    *opt,
-                    f"{package.name}=={package.version}",
-                ),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            ):
-                (filename,) = os.listdir(tmpdir)
-                filename_full = os.path.join(tmpdir, filename)
+        # in that case fall back to a less specific (e.g. purelib) wheel
+        for wheel in release.wheels_for(python):
+            filename_full = _fetch(wheel, tmpdir)
 
-                arch_reason = _check_arch(filename_full)
-                if arch_reason is not None:
-                    os.remove(filename_full)
-                    print(f"-> ignoring: {filename}\n{arch_reason}")
-                    continue
-                else:
-                    shutil.copy(filename_full, dest)
-                    return filename
+            arch_reason = _check_arch(filename_full)
+            if arch_reason is not None:
+                os.remove(filename_full)
+                print(f"-> ignoring: {wheel.filename}\n{arch_reason}")
+            else:
+                shutil.copy(filename_full, dest)
+                return wheel.filename
         else:
             return None
 
@@ -626,90 +652,31 @@ def _produced_binary(wheel: str) -> bool:
             return False
 
 
-def _download_sdist(
-    package: Package,
-    python: Python,
-    dest: str,
-    *,
-    timeout: int | None = None,
-) -> None:
-    # Retry only this lookup, not the actual build, where repeating a genuine
-    # build failure would not help.
-    pip = (python.exe, "-mpip")
-    cmd = (
-        *pip,
-        "download",
-        f"--dest={dest}",
-        "--index-url=https://pypi.org/simple",
-        "--no-deps",
-        f"--no-binary={package.name}",
-        f"{package.name}=={package.version}",
-    )
-    for delay in _public_pypi_retry_delays():
-        try:
-            subprocess.check_call(cmd, timeout=timeout)
-        except subprocess.CalledProcessError:
-            print(f"-> public PyPI download failed; retrying in {delay:g}s")
-            time.sleep(delay)
-        else:
-            return
-
-    subprocess.check_call(cmd, timeout=timeout)
-
-
-def _download_wheel_only(
-    package: Package,
-    python: Python,
-    release: Release,
-    dest: str,
-) -> str:
-    pkg_id = f"{package.name}=={package.version}"
-    if not release.wheel_tags & python.tags:
-        raise SystemExit(
-            f"{pkg_id}: no sdist and no wheel for python {python.version_string}"
-        )
-
-    # public PyPI lists a matching wheel but the simple index may still lag
-    for delay in _public_pypi_retry_delays():
-        print(f"-> public PyPI wheel download failed; retrying in {delay:g}s")
-        time.sleep(delay)
-        downloaded_wheel = _download(package, python, dest)
-        if downloaded_wheel is not None:
-            return downloaded_wheel
-
-    raise SystemExit(f"{pkg_id}: could not download wheel from public PyPI")
-
-
 def _build(
     package: Package,
     python: Python,
+    sdist_file: ReleaseFile,
     dest: str,
     index_url: str,
     timeout: int | None = None,
 ) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
-        pip = (python.exe, "-mpip")
-
         with plat.install(package), _prebuild(package, tmpdir):
             # download the sdist first such that we can build against our index
-            sdist_dir = os.path.join(tmpdir, "sdist")
-            _download_sdist(
-                package,
-                python,
-                sdist_dir,
-                timeout=timeout,
-            )
-            (sdist,) = os.listdir(sdist_dir)
-            sdist = os.path.join(sdist_dir, sdist)
+            sdist = _fetch(sdist_file, os.path.join(tmpdir, "sdist"))
 
             build_dir = os.path.join(tmpdir, "build")
             subprocess.check_call(
                 (
-                    *pip,
-                    "wheel",
-                    f"--index-url={index_url}",
-                    f"--wheel-dir={build_dir}",
-                    "--no-deps",
+                    "uv",
+                    "build",
+                    "--no-config",
+                    "--quiet",
+                    "--wheel",
+                    f"--python={python.exe}",
+                    "--python-preference=only-system",
+                    f"--default-index={index_url}",
+                    f"--out-dir={build_dir}",
                     sdist,
                 ),
                 env={
@@ -719,7 +686,8 @@ def _build(
                 },
                 timeout=timeout,
             )
-            (filename,) = os.listdir(build_dir)
+            # uv also writes a `.gitignore` into the output directory
+            (filename,) = (f for f in os.listdir(build_dir) if f.endswith(".whl"))
             filename_full = os.path.join(build_dir, filename)
 
             likely_binary_reason = _likely_binary(sdist, package.likely_binary_ignore)
@@ -820,19 +788,20 @@ def main() -> int:
                     continue
 
                 print("-> building...")
-                downloaded_wheel = _download(package, python, args.dest)
-                if downloaded_wheel is None and not release.has_sdist:
-                    downloaded_wheel = _download_wheel_only(
-                        package, python, release, args.dest
-                    )
-
+                downloaded_wheel = _download(release, python, args.dest)
                 if downloaded_wheel is not None:
                     _add_wheel(built, downloaded_wheel)
                     print(f"-> downloaded! {downloaded_wheel}")
+                elif release.sdist is None:
+                    raise SystemExit(
+                        f"{pkg_id}: no sdist and no usable wheel for "
+                        f"python {python.version_string}"
+                    )
                 else:
                     built_wheel = _build(
                         package,
                         python,
+                        release.sdist,
                         args.dest,
                         index_url,
                         timeout=timeout,

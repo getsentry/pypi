@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -150,49 +151,6 @@ def test_get_internal_wheels():
     }
 
 
-def test_download_sdist_retries_public_pypi_lookup(tmp_path):
-    package = Package.make("a==1", {})
-    python = build.Python((3, 11), frozenset())
-    failure = subprocess.CalledProcessError(1, ("pip",))
-
-    with (
-        mock.patch.object(
-            subprocess, "check_call", side_effect=[failure, failure, None]
-        ) as check_call,
-        mock.patch.object(build.time, "sleep") as sleep,
-    ):
-        build._download_sdist(package, python, str(tmp_path))
-
-    assert check_call.call_count == 3
-    assert sleep.call_args_list == [mock.call(1), mock.call(2)]
-
-
-def test_download_sdist_stops_after_retry_budget(tmp_path):
-    package = Package.make("a==1", {})
-    python = build.Python((3, 11), frozenset())
-    failure = subprocess.CalledProcessError(1, ("pip",))
-    elapsed = 0.0
-    slept: list[float] = []
-
-    def monotonic() -> float:
-        return elapsed
-
-    def sleep(delay: float) -> None:
-        nonlocal elapsed
-        elapsed += delay
-        slept.append(delay)
-
-    with (
-        mock.patch.object(subprocess, "check_call", side_effect=failure),
-        mock.patch.object(build.time, "monotonic", side_effect=monotonic),
-        mock.patch.object(build.time, "sleep", side_effect=sleep),
-    ):
-        with pytest.raises(subprocess.CalledProcessError):
-            build._download_sdist(package, python, str(tmp_path))
-
-    assert sum(slept) == build.PUBLIC_PYPI_RETRY_TIMEOUT
-
-
 def _pypi_json(requires_python, filenames):
     return io.BytesIO(
         json.dumps(
@@ -201,6 +159,8 @@ def _pypi_json(requires_python, filenames):
                 "urls": [
                     {
                         "filename": f,
+                        "url": f"https://files.example.com/{f}",
+                        "digests": {"sha256": "h"},
                         "packagetype": "sdist"
                         if f.endswith(".tar.gz")
                         else "bdist_wheel",
@@ -219,8 +179,16 @@ def test_public_release():
 
     assert release == build.Release(
         requires_python=SpecifierSet(">=3.13"),
-        has_sdist=True,
-        wheel_tags=frozenset((Tag("py3", "none", "any"),)),
+        sdist=build.ReleaseFile(
+            "a-1.tar.gz", "https://files.example.com/a-1.tar.gz", "h"
+        ),
+        wheels=(
+            build.ReleaseFile(
+                "a-1-py3-none-any.whl",
+                "https://files.example.com/a-1-py3-none-any.whl",
+                "h",
+            ),
+        ),
     )
 
 
@@ -230,7 +198,7 @@ def test_public_release_invalid_requires_python_is_ignored():
         release = build._public_release(Package.make("a==1", {}))
 
     assert release.requires_python == SpecifierSet()
-    assert release.has_sdist is False
+    assert release.sdist is None
 
 
 def test_public_release_retries_until_visible():
@@ -250,44 +218,44 @@ def test_public_release_retries_until_visible():
 
 def test_release_supports():
     python = build.Python((3, 11), frozenset())
-    release = build.Release(SpecifierSet(">=3.13"), True, frozenset())
+    release = build.Release(SpecifierSet(">=3.13"), None, ())
     with mock.patch.object(build, "_python_full_version", return_value="3.11.14"):
         assert release.supports(python) is False
     with mock.patch.object(build, "_python_full_version", return_value="3.13.12"):
         assert release.supports(python._replace(version=(3, 13))) is True
 
 
-def test_download_wheel_only_without_matching_wheel_fails_fast():
-    package = Package.make("a==1", {})
-    python = build.Python((3, 11), frozenset((Tag("cp311", "cp311", "any"),)))
-    release = build.Release(
-        SpecifierSet(), False, frozenset((Tag("cp313", "cp313", "any"),))
-    )
+def test_release_wheels_for_prefers_most_specific_tag():
+    python = build.Python((3, 11), frozenset())
+    purelib = build.ReleaseFile("a-1-py3-none-any.whl", "u", "h")
+    cp311 = build.ReleaseFile("a-1-cp311-cp311-manylinux_2_17_x86_64.whl", "u", "h")
+    cp313 = build.ReleaseFile("a-1-cp313-cp313-manylinux_2_17_x86_64.whl", "u", "h")
+    release = build.Release(SpecifierSet(), None, (purelib, cp313, cp311))
 
-    with mock.patch.object(build, "_download") as download:
-        with pytest.raises(SystemExit) as excinfo:
-            build._download_wheel_only(package, python, release, "dest")
-
-    assert excinfo.value.code == "a==1: no sdist and no wheel for python 3.11"
-    download.assert_not_called()
-
-
-def test_download_wheel_only_retries_until_wheel_visible():
-    package = Package.make("a==1", {})
-    tag = Tag("py3", "none", "any")
-    python = build.Python((3, 11), frozenset((tag,)))
-    release = build.Release(SpecifierSet(), False, frozenset((tag,)))
-
-    with (
-        mock.patch.object(
-            build, "_download", side_effect=[None, "a-1-py3-none-any.whl"]
-        ),
-        mock.patch.object(build.time, "sleep") as sleep,
+    with mock.patch.object(
+        build, "platform_tags", return_value=iter(("manylinux_2_17_x86_64",))
     ):
-        ret = build._download_wheel_only(package, python, release, "dest")
+        assert release.wheels_for(python) == [cp311, purelib]
 
-    assert ret == "a-1-py3-none-any.whl"
-    assert sleep.call_args_list == [mock.call(1), mock.call(2)]
+
+def test_fetch_verifies_sha256(tmp_path):
+    contents = b"wheel contents"
+    good = build.ReleaseFile(
+        "a-1-py3-none-any.whl", "u", hashlib.sha256(contents).hexdigest()
+    )
+    with mock.patch.object(
+        urllib.request, "urlopen", return_value=io.BytesIO(contents)
+    ):
+        ret = build._fetch(good, str(tmp_path))
+    assert open(ret, "rb").read() == contents
+
+    bad = good._replace(sha256="0" * 64)
+    with mock.patch.object(
+        urllib.request, "urlopen", return_value=io.BytesIO(contents)
+    ):
+        with pytest.raises(SystemExit) as excinfo:
+            build._fetch(bad, str(tmp_path))
+    assert excinfo.value.code == "a-1-py3-none-any.whl: sha256 mismatch"
 
 
 def test_brew_paths():
