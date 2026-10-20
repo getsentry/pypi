@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -190,6 +191,103 @@ def test_download_sdist_stops_after_retry_budget(tmp_path):
             build._download_sdist(package, python, str(tmp_path))
 
     assert sum(slept) == build.PUBLIC_PYPI_RETRY_TIMEOUT
+
+
+def _pypi_json(requires_python, filenames):
+    return io.BytesIO(
+        json.dumps(
+            {
+                "info": {"requires_python": requires_python},
+                "urls": [
+                    {
+                        "filename": f,
+                        "packagetype": "sdist"
+                        if f.endswith(".tar.gz")
+                        else "bdist_wheel",
+                    }
+                    for f in filenames
+                ],
+            }
+        ).encode()
+    )
+
+
+def test_public_release():
+    resp = _pypi_json(">=3.13", ("a-1-py3-none-any.whl", "a-1.tar.gz"))
+    with mock.patch.object(urllib.request, "urlopen", return_value=resp):
+        release = build._public_release(Package.make("a==1", {}))
+
+    assert release == build.Release(
+        requires_python=SpecifierSet(">=3.13"),
+        has_sdist=True,
+        wheel_tags=frozenset((Tag("py3", "none", "any"),)),
+    )
+
+
+def test_public_release_invalid_requires_python_is_ignored():
+    resp = _pypi_json(">=3.6.*", ("a-1-py3-none-any.whl",))
+    with mock.patch.object(urllib.request, "urlopen", return_value=resp):
+        release = build._public_release(Package.make("a==1", {}))
+
+    assert release.requires_python == SpecifierSet()
+    assert release.has_sdist is False
+
+
+def test_public_release_retries_until_visible():
+    not_found = urllib.error.HTTPError("u", 404, "Not Found", {}, None)  # type: ignore[arg-type]
+    resp = _pypi_json(None, ("a-1.tar.gz",))
+    with (
+        mock.patch.object(
+            urllib.request, "urlopen", side_effect=[not_found, not_found, resp]
+        ),
+        mock.patch.object(build.time, "sleep") as sleep,
+    ):
+        release = build._public_release(Package.make("a==1", {}))
+
+    assert sleep.call_args_list == [mock.call(1), mock.call(2)]
+    assert release.requires_python == SpecifierSet()
+
+
+def test_release_supports():
+    python = build.Python((3, 11), frozenset())
+    release = build.Release(SpecifierSet(">=3.13"), True, frozenset())
+    with mock.patch.object(build, "_python_full_version", return_value="3.11.14"):
+        assert release.supports(python) is False
+    with mock.patch.object(build, "_python_full_version", return_value="3.13.12"):
+        assert release.supports(python._replace(version=(3, 13))) is True
+
+
+def test_download_wheel_only_without_matching_wheel_fails_fast():
+    package = Package.make("a==1", {})
+    python = build.Python((3, 11), frozenset((Tag("cp311", "cp311", "any"),)))
+    release = build.Release(
+        SpecifierSet(), False, frozenset((Tag("cp313", "cp313", "any"),))
+    )
+
+    with mock.patch.object(build, "_download") as download:
+        with pytest.raises(SystemExit) as excinfo:
+            build._download_wheel_only(package, python, release, "dest")
+
+    assert excinfo.value.code == "a==1: no sdist and no wheel for python 3.11"
+    download.assert_not_called()
+
+
+def test_download_wheel_only_retries_until_wheel_visible():
+    package = Package.make("a==1", {})
+    tag = Tag("py3", "none", "any")
+    python = build.Python((3, 11), frozenset((tag,)))
+    release = build.Release(SpecifierSet(), False, frozenset((tag,)))
+
+    with (
+        mock.patch.object(
+            build, "_download", side_effect=[None, "a-1-py3-none-any.whl"]
+        ),
+        mock.patch.object(build.time, "sleep") as sleep,
+    ):
+        ret = build._download_wheel_only(package, python, release, "dest")
+
+    assert ret == "a-1-py3-none-any.whl"
+    assert sleep.call_args_list == [mock.call(1), mock.call(2)]
 
 
 def test_brew_paths():

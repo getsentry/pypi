@@ -100,3 +100,22 @@ def test_top_imports_record(tmp_path):
 
     expected = ["distlib", "_distlib_backend", "distlib_top"]
     assert validate._top_imports(str(whl)) == expected
+
+
+def test_requires_python_from_metadata(tmp_path):
+    whl = tmp_path.joinpath("a-1-py3-none-any.whl")
+    with zipfile.ZipFile(whl, "w") as zipf:
+        zipf.writestr(
+            "a-1.dist-info/METADATA",
+            "Metadata-Version: 2.1\nName: a\nVersion: 1\nRequires-Python: >=3.13\n",
+        )
+
+    assert validate._requires_python(str(whl)) == SpecifierSet(">=3.13")
+
+
+def test_requires_python_missing_allows_everything(tmp_path):
+    whl = tmp_path.joinpath("a-1-py3-none-any.whl")
+    with zipfile.ZipFile(whl, "w") as zipf:
+        zipf.writestr("a-1.dist-info/METADATA", "Metadata-Version: 2.1\nName: a\n")
+
+    assert validate._requires_python(str(whl)) == SpecifierSet()

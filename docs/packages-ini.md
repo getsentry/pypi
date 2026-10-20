@@ -66,6 +66,9 @@ python_versions = <3.12
 
 `validate.py` also skips the excluded versions.
 
+You do not need `python_versions` to repeat a package's `Requires-Python`.
+`build.py` and `validate.py` already skip the Python versions that `Requires-Python` excludes.
+
 ## validation options
 
 after building the packages will be checked that they can install and import
