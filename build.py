@@ -124,6 +124,8 @@ class Package(NamedTuple):
     custom_prebuild: tuple[str, ...]
     likely_binary_ignore: tuple[str, ...]
     python_versions: SpecifierSet
+    config_settings: tuple[str, ...]
+    require_binary: bool
 
     def satisfied_by(
         self,
@@ -131,6 +133,8 @@ class Package(NamedTuple):
         tags: frozenset[Tag],
     ) -> bool:
         for version, wheel_tags in wheels.get(self.name, ()):
+            if self.require_binary:
+                wheel_tags = frozenset(t for t in wheel_tags if t.platform != "any")
             if version == self.version and wheel_tags & tags:
                 return True
         else:
@@ -146,6 +150,10 @@ class Package(NamedTuple):
         custom_prebuild = tuple(dct.pop("custom_prebuild", "").split())
         likely_binary_ignore = tuple(dct.pop("likely_binary_ignore", "").split())
         python_versions = dct.pop("python_versions", "")
+        config_settings = tuple(dct.pop("config_settings", "").split())
+        require_binary = dct.pop("require_binary", "false")
+        if require_binary not in ("true", "false"):
+            raise ValueError(f"{key}: require_binary must be true or false")
         # ignore validate-only settings
         for setting in (
             "validate_extras",
@@ -164,6 +172,8 @@ class Package(NamedTuple):
             custom_prebuild=custom_prebuild,
             likely_binary_ignore=likely_binary_ignore,
             python_versions=SpecifierSet(python_versions),
+            config_settings=config_settings,
+            require_binary=require_binary == "true",
         )
 
 
@@ -507,12 +517,17 @@ def _check_arch(filename: str) -> str | None:
     return None
 
 
-def _download(release: Release, python: Python, dest: str) -> str | None:
+def _download(
+    release: Release, python: Python, dest: str, *, require_binary: bool
+) -> str | None:
     with tempfile.TemporaryDirectory() as tmpdir:
         # try the most specific wheel first
         # it may be invalidated due to being packaged for the wrong arch
         # in that case fall back to a less specific (e.g. purelib) wheel
         for wheel in release.wheels_for(python):
+            if require_binary and wheel.filename.endswith("-any.whl"):
+                print(f"-> ignoring: {wheel.filename}\nrequire_binary is set")
+                continue
             filename_full = _fetch(wheel, tmpdir)
 
             arch_reason = _check_arch(filename_full)
@@ -677,6 +692,7 @@ def _build(
                     "--python-preference=only-system",
                     f"--default-index={index_url}",
                     f"--out-dir={build_dir}",
+                    *(f"--config-setting={s}" for s in package.config_settings),
                     sdist,
                 ),
                 env={
@@ -690,7 +706,12 @@ def _build(
             (filename,) = (f for f in os.listdir(build_dir) if f.endswith(".whl"))
             filename_full = os.path.join(build_dir, filename)
 
-            likely_binary_reason = _likely_binary(sdist, package.likely_binary_ignore)
+            if package.require_binary:
+                likely_binary_reason: str | None = "require_binary is set"
+            else:
+                likely_binary_reason = _likely_binary(
+                    sdist, package.likely_binary_ignore
+                )
             if likely_binary_reason and not _produced_binary(filename_full):
                 raise SystemExit(
                     f"{package.name}=={package.version} expected binary as "
@@ -788,7 +809,9 @@ def main() -> int:
                     continue
 
                 print("-> building...")
-                downloaded_wheel = _download(release, python, args.dest)
+                downloaded_wheel = _download(
+                    release, python, args.dest, require_binary=package.require_binary
+                )
                 if downloaded_wheel is not None:
                     _add_wheel(built, downloaded_wheel)
                     print(f"-> downloaded! {downloaded_wheel}")

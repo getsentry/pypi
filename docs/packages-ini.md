@@ -39,6 +39,17 @@ custom_prebuild = prebuild/crc32c 1.1.2
 
 The scripts live in `prebuild/`.
 
+### config_settings
+
+`uv build` passes each whitespace-separated value as a `--config-setting`.
+Use it when an sdist compiles its extensions only when asked.
+
+```ini
+[pydantic==1.10.26]
+config_settings = --build-option=--cythonize
+require_binary = true
+```
+
 ### likely_binary_ignore
 
 when the sdist has source files of a compiled language (see `BINARY_EXTS` in `build.py`),
@@ -52,6 +63,13 @@ source files:
 likely_binary_ignore =
     salt-3006.6/pkg/old/smartos/esky/sodium_grabber.c
 ```
+
+### require_binary
+
+Set `require_binary = true` when a purelib wheel of the package works but is much slower than the compiled one.
+`build.py` then ignores purelib wheels, both on public PyPI and in the index, and fails when the wheel it builds has no `.so` file.
+Use it with `config_settings` when the sdist only compiles when asked.
+pydantic 1.x is the example: PyPI has compiled wheels for some platforms only, plus a purelib wheel.
 
 ### python_versions
 
