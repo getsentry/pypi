@@ -62,6 +62,8 @@ def test_package_default():
         custom_prebuild=(),
         likely_binary_ignore=(),
         python_versions=SpecifierSet(),
+        config_settings=(),
+        require_binary=False,
     )
 
 
@@ -88,7 +90,27 @@ def test_package_parses_split_values():
         custom_prebuild=("prebuild/crc32c", "deadbeef"),
         likely_binary_ignore=(),
         python_versions=SpecifierSet(),
+        config_settings=(),
+        require_binary=False,
     )
+
+
+def test_package_parses_config_settings_and_require_binary():
+    dct = {
+        "config_settings": "--build-option=--cythonize",
+        "require_binary": "true",
+    }
+    ret = Package.make("a==1", dct)
+    assert ret.config_settings == ("--build-option=--cythonize",)
+    assert ret.require_binary is True
+
+
+def test_package_require_binary_must_be_a_bool():
+    with pytest.raises(ValueError) as excinfo:
+        Package.make("a==1", {"require_binary": "yes"})
+
+    (msg,) = excinfo.value.args
+    assert msg == "a==1: require_binary must be true or false"
 
 
 LINUX_3_8_SUPPORTED_TAGS = frozenset(
@@ -130,6 +152,15 @@ def test_package_satisfied_by_does_not_match(filename):
     wheels: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
     build._add_wheel(wheels, filename)
     assert package.satisfied_by(wheels, LINUX_3_8_SUPPORTED_TAGS) is False
+
+
+def test_package_satisfied_by_require_binary_ignores_purelib():
+    package = Package.make("my-pkg==1.2.3", {"require_binary": "true"})
+    wheels: dict[str, list[tuple[Version, frozenset[Tag]]]] = {}
+    build._add_wheel(wheels, "my_pkg-1.2.3-py3-none-any.whl")
+    assert package.satisfied_by(wheels, LINUX_3_8_SUPPORTED_TAGS) is False
+    build._add_wheel(wheels, "my_pkg-1.2.3-cp38-cp38-manylinux1_x86_64.whl")
+    assert package.satisfied_by(wheels, LINUX_3_8_SUPPORTED_TAGS) is True
 
 
 def test_get_internal_wheels():
@@ -236,6 +267,29 @@ def test_release_wheels_for_prefers_most_specific_tag():
         build, "platform_tags", return_value=iter(("manylinux_2_17_x86_64",))
     ):
         assert release.wheels_for(python) == [cp311, purelib]
+
+
+@pytest.mark.parametrize(("require_binary", "expected"), ((False, True), (True, False)))
+def test_download_require_binary_skips_purelib(tmp_path, require_binary, expected):
+    python = build.Python((3, 11), frozenset())
+    purelib = build.ReleaseFile("a-1-py3-none-any.whl", "u", "h")
+    release = build.Release(SpecifierSet(), None, (purelib,))
+
+    def fake_fetch(release_file, dest):
+        path = os.path.join(dest, release_file.filename)
+        open(path, "wb").close()
+        return path
+
+    with (
+        mock.patch.object(build, "_fetch", side_effect=fake_fetch),
+        mock.patch.object(build, "_check_arch", return_value=None),
+    ):
+        ret = build._download(
+            release, python, str(tmp_path), require_binary=require_binary
+        )
+
+    assert ret == ("a-1-py3-none-any.whl" if expected else None)
+    assert (tmp_path / "a-1-py3-none-any.whl").exists() is expected
 
 
 def test_fetch_verifies_sha256(tmp_path):
