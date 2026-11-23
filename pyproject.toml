@@ -8,7 +8,7 @@ dependencies = [
     "dumb-pypi>=1.15.0",
     "packaging>=21.3",
     "patchelf>=0.14.5; sys_platform == 'linux'",
-    "setuptools>=67",
+    "setuptools>=84.1.0",
     "wheel>=0.38.1",
 ]
 
