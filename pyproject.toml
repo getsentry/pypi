@@ -17,7 +17,7 @@ dev = [
     "covdefaults",
     "coverage",
     "mypy>=1.18.2",
-    "pre-commit==4.2.0",
+    "prek>=0.5.10",
     "pytest",
     "re-assert",
     "ruff",

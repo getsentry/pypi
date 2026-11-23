@@ -5,9 +5,9 @@ Tools that build and publish Sentry's internal PyPI index at `https://pypi.devin
 
 ## commands
 
-- Set up: `uv sync`, then `direnv allow` to install the pre-commit hooks.
+- Set up: `uv sync`, then `direnv allow` to install the prek hooks.
 - Test: `uv run coverage run -m pytest tests && uv run coverage report`
-- Lint and format: `pre-commit run --files <changed files>`
+- Lint and format: `prek run --files <changed files>`
 - Add a package: `python3 -m add_pkg PKGNAME`
 - Add the newest PyPI release of every package: `python3 -m upgrade_all`
 - Format `packages.ini`: `python3 -m format_ini packages.ini`
